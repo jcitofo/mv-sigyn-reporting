@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="MV Sigyn Communication and Reporting System - Efficiently manage and submit vessel reports">
+    <meta name="theme-color" content="#003366">
+    
+    <!-- Security headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self'">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    
+    <title>MV Sigyn Communication and Reporting</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css?v=2">
+</head>
+<body>
+    <header>
+        <h1>MV Sigyn Communication and Reporting</h1>
+    </header>
+
+    <nav>
+        <div class="container">
+            <a href="#data-entry" aria-current="page">Data Entry</a>
+            <a href="#data-consultation">Data Consultation</a>
+            <a href="#report-visualization">Report Visualization</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <main>
+            <aside>
+                <h2>Quick Actions</h2>
+                <ul>
+                    <li><a href="#navigation-report" class="quick-action">Create Navigation Report</a></li>
+                    <li><a href="#equipment-report" class="quick-action">Update Equipment Status</a></li>
+                    <li><a href="#incident-report" class="quick-action">File Incident Report</a></li>
+                    <li><a href="#weather-report" class="quick-action">Submit Weather Update</a></li>
+                </ul>
+            </aside>
+
+            <section id="data-entry" class="section-content">
+                <h2>Data Entry Form</h2>
+                <form id="dataEntryForm" novalidate>
+                    <div class="form-group">
+                        <label for="userRole">Role:</label>
+                        <select id="userRole" name="userRole" required aria-required="true">
+                            <option value="">Select your role</option>
+                            <option value="captain">Captain</option>
+                            <option value="chiefOfficer">Chief Officer</option>
+                            <option value="chiefEngineer">Chief Engineer</option>
+                            <option value="secondOfficer">Second Officer</option>
+                            <option value="thirdOfficer">Third Officer</option>
+                            <option value="secondEngineer">Second Engineer</option>
+                            <option value="thirdEngineer">Third Engineer</option>
+                            <option value="bosun">Bosun</option>
+                            <option value="ceo">CEO</option>
+                            <option value="superintendent">Superintendent</option>
+                            <option value="hseManager">HSE Manager</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="officerName">Name:</label>
+                        <input type="text" id="officerName" name="officerName" required aria-required="true" 
+                            placeholder="Enter your full name"
+                            autocomplete="name"
+                            pattern="[A-Za-z\s\-']+"
+                            title="Please enter a valid name (letters, spaces, hyphens, and apostrophes only)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="officerId">Officer ID/License Number:</label>
+                        <input type="text" id="officerId" name="officerId" required aria-required="true" 
+                            placeholder="Enter your ID or license number"
+                            autocomplete="username"
+                            pattern="[A-Z0-9\-]+"
+                            title="Please enter a valid ID (uppercase letters, numbers, and hyphens only)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="department">Department:</label>
+                        <select id="department" name="department" required aria-required="true">
+                            <option value="">Select your department</option>
+                            <option value="deck">Deck Department</option>
+                            <option value="engine">Engine Department</option>
+                            <option value="management">Management</option>
+                            <option value="safety">Safety & Security</option>
+                            <option value="operations">Operations</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required aria-required="true"
+                            placeholder="Enter your email address"
+                            autocomplete="email"
+                            pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                            title="Please enter a valid email address">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number:</label>
+                        <input type="tel" id="phone" name="phone" required aria-required="true"
+                            placeholder="Enter your phone number"
+                            autocomplete="tel"
+                            pattern="[0-9+\-\s()]+"
+                            title="Please enter a valid phone number">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportType">Report Type:</label>
+                        <select id="reportType" name="reportType" required aria-required="true">
+                            <option value="">Select a report type</option>
+                            <option value="navigation">Navigation Report</option>
+                            <option value="equipment">Equipment Status</option>
+                            <option value="incident">Incident Report</option>
+                            <option value="weather">Weather Update</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="date">Date:</label>
+                        <input type="date" id="date" name="date" required aria-required="true">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="details">Details:</label>
+                        <textarea id="details" name="details" rows="5" required aria-required="true"
+                            placeholder="Enter detailed information about your report..."
+                            minlength="10"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signature">Digital Signature:</label>
+                        <input type="password" id="signature" name="signature" required aria-required="true" 
+                            placeholder="Enter your digital signature" 
+                            pattern="^[A-Za-z0-9@#$%^&+=]{8,}$"
+                            title="Signature must be at least 8 characters and may include letters, numbers, and special characters"
+                            autocomplete="current-password">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="confirmAccuracy" name="confirmAccuracy" required
+                                aria-label="Confirmation of accuracy">
+                            I confirm that all information provided is accurate and true
+                        </label>
+                    </div>
+
+                    <button type="submit">Submit Report</button>
+                    <div id="devTools" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
+                        <button type="button" id="fillTestData" class="secondary">Fill Test Data</button>
+                    </div>
+                </form>
+            </section>
+
+            <section id="data-consultation" class="section-content" style="display: none;">
+                <h2>Data Consultation</h2>
+                
+                <div class="filter-controls">
+                    <div class="form-group">
+                        <label for="filterReportType">Filter by Report Type:</label>
+                        <select id="filterReportType">
+                            <option value="">All Report Types</option>
+                            <option value="navigation">Navigation Report</option>
+                            <option value="equipment">Equipment Status</option>
+                            <option value="incident">Incident Report</option>
+                            <option value="weather">Weather Update</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="filterDepartment">Filter by Department:</label>
+                        <select id="filterDepartment">
+                            <option value="">All Departments</option>
+                            <option value="deck">Deck Department</option>
+                            <option value="engine">Engine Department</option>
+                            <option value="management">Management</option>
+                            <option value="safety">Safety & Security</option>
+                            <option value="operations">Operations</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="searchReports">Search Reports:</label>
+                        <input type="text" id="searchReports" placeholder="Search by name, ID, or details...">
+                    </div>
+                    
+                    <button id="exportReports" class="secondary">Export to CSV</button>
+                </div>
+                
+                <div class="reports-table-container">
+                    <table id="reportsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="date">Date <span class="sort-icon">↓</span></th>
+                                <th data-sort="reportType">Report Type <span class="sort-icon"></span></th>
+                                <th data-sort="officerName">Officer Name <span class="sort-icon"></span></th>
+                                <th data-sort="department">Department <span class="sort-icon"></span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportsTableBody">
+                            <!-- Reports will be populated here by JavaScript -->
+                        </tbody>
+                    </table>
+                    <div id="noReportsMessage" style="display: none; text-align: center; padding: 20px;">
+                        No reports found. Please adjust your filters or add new reports.
+                    </div>
+                </div>
+                
+                <div id="reportDetailModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h3>Report Details</h3>
+                        <div id="reportDetailContent"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="report-visualization" class="section-content" style="display: none;">
+                <h2>Report Visualization</h2>
+                
+                <div class="dashboard-summary">
+                    <div class="summary-card" id="totalReports">
+                        <h3>Total Reports</h3>
+                        <p class="summary-number">0</p>
+                    </div>
+                    <div class="summary-card" id="reportsByType">
+                        <h3>Reports by Type</h3>
+                        <div class="summary-breakdown"></div>
+                    </div>
+                    <div class="summary-card" id="reportsByDepartment">
+                        <h3>Reports by Department</h3>
+                        <div class="summary-breakdown"></div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-card">
+                        <h3>Reports by Type</h3>
+                        <canvas id="reportTypeChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Reports by Department</h3>
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-card full-width">
+                        <h3>Reports Timeline</h3>
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2023-2024 MV Sigyn Communication and Reporting System</p>
+            <p>Version 1.0.0 | <a href="#privacy-policy">Privacy Policy</a> | <a href="#terms">Terms of Use</a></p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+    <script src="js/app.js?v=3" defer></script>
+    <script src="js/sw-register.js?v=2" defer></script>
+</body>
+</html>
