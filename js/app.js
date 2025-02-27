@@ -230,20 +230,25 @@ document.addEventListener('DOMContentLoaded', () => {
         dataEntryForm.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
         
         // Fill form fields
-        dataEntryForm.userRole.value = 'captain';
-        dataEntryForm.officerName.value = 'John Smith';
-        dataEntryForm.officerId.value = 'CAP-123456';
-        dataEntryForm.department.value = 'deck';
-        dataEntryForm.email.value = 'john.smith@vessel.com';
-        dataEntryForm.phone.value = '+1234567890';
-        dataEntryForm.reportType.value = 'navigation';
-        dataEntryForm.details.value = 'Test report details with sufficient length';
+        document.getElementById('userRole').value = 'captain';
+        document.getElementById('officerName').value = 'John Smith';
+        document.getElementById('officerId').value = 'CAP-123456';
+        document.getElementById('department').value = 'deck';
+        document.getElementById('email').value = 'john.smith@vessel.com';
+        document.getElementById('phone').value = '+1234567890';
+        document.getElementById('reportType').value = 'navigation';
+        
+        // Set date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').value = today;
+        
+        document.getElementById('details').value = 'Test report details with sufficient length for validation. This is a sample report.';
         
         // Set signature value directly on the DOM element
         const signatureField = document.getElementById('signature');
         signatureField.value = 'TestSign123!';
         
-        dataEntryForm.confirmAccuracy.checked = true;
+        document.getElementById('confirmAccuracy').checked = true;
         
         // Trigger input events to ensure validation is updated
         dataEntryForm.querySelectorAll('input, select, textarea').forEach(input => {
@@ -251,8 +256,13 @@ document.addEventListener('DOMContentLoaded', () => {
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
         
-        // Force validation to pass for the signature field
-        signatureField.setCustomValidity('');
+        console.log('Test data filled:', {
+            userRole: document.getElementById('userRole').value,
+            reportType: document.getElementById('reportType').value,
+            date: document.getElementById('date').value,
+            details: document.getElementById('details').value,
+            signature: document.getElementById('signature').value
+        });
     };
 
     // Show dev tools (always visible for testing)
@@ -371,30 +381,18 @@ let filteredReports = [];
 
 const renderReportsTable = () => {
     const reports = getReports();
-    const tableBody = document.getElementById('reportsTableBody');
+    const reportsListContainer = document.getElementById('reportsListContainer');
     const noReportsMessage = document.getElementById('noReportsMessage');
     
-    if (!tableBody) return;
+    if (!reportsListContainer) return;
     
-    // Clear the table
-    tableBody.innerHTML = '';
+    // Clear the container
+    reportsListContainer.innerHTML = '';
     
-    // Apply filters
-    const reportTypeFilter = document.getElementById('filterReportType').value;
-    const departmentFilter = document.getElementById('filterDepartment').value;
-    const searchTerm = document.getElementById('searchReports').value.toLowerCase();
+    // Apply search filter
+    const searchTerm = document.getElementById('searchReports')?.value.toLowerCase() || '';
     
     filteredReports = reports.filter(report => {
-        // Apply report type filter
-        if (reportTypeFilter && report.reportType !== reportTypeFilter) {
-            return false;
-        }
-        
-        // Apply department filter
-        if (departmentFilter && report.department !== departmentFilter) {
-            return false;
-        }
-        
         // Apply search term
         if (searchTerm) {
             const searchFields = [
@@ -411,90 +409,56 @@ const renderReportsTable = () => {
         return true;
     });
     
-    // Sort the reports
+    // Sort the reports by date (newest first)
     filteredReports.sort((a, b) => {
-        let valueA = a[currentSortField];
-        let valueB = b[currentSortField];
-        
-        // Handle date fields
-        if (currentSortField === 'date' || currentSortField === 'timestamp') {
-            valueA = new Date(valueA);
-            valueB = new Date(valueB);
-        }
-        
-        // Handle string fields
-        if (typeof valueA === 'string' && typeof valueB === 'string') {
-            valueA = valueA.toLowerCase();
-            valueB = valueB.toLowerCase();
-        }
-        
-        if (valueA < valueB) {
-            return currentSortDirection === 'asc' ? -1 : 1;
-        }
-        if (valueA > valueB) {
-            return currentSortDirection === 'asc' ? 1 : -1;
-        }
-        return 0;
+        return new Date(b.date) - new Date(a.date);
     });
     
     // Show/hide no reports message
     if (filteredReports.length === 0) {
-        tableBody.innerHTML = '';
+        reportsListContainer.innerHTML = '';
         noReportsMessage.style.display = 'block';
     } else {
         noReportsMessage.style.display = 'none';
         
-        // Render the reports
+        // Render the reports as cards
         filteredReports.forEach(report => {
-            const row = document.createElement('tr');
+            const card = document.createElement('div');
+            card.className = 'report-card';
+            card.addEventListener('click', () => showReportDetails(report));
             
-            // Date column
-            const dateCell = document.createElement('td');
-            dateCell.textContent = formatDate(report.date);
-            row.appendChild(dateCell);
+            // Create report title
+            const title = document.createElement('h3');
+            title.textContent = getReportTypeName(report.reportType);
+            card.appendChild(title);
             
-            // Report Type column
-            const typeCell = document.createElement('td');
-            typeCell.textContent = getReportTypeName(report.reportType);
-            row.appendChild(typeCell);
+            // Create meta information
+            const meta = document.createElement('div');
+            meta.className = 'report-card-meta';
             
-            // Officer Name column
-            const nameCell = document.createElement('td');
-            nameCell.textContent = report.officerName;
-            row.appendChild(nameCell);
+            const dateInfo = document.createElement('span');
+            dateInfo.textContent = `Date: ${formatDate(report.date)}`;
+            meta.appendChild(dateInfo);
             
-            // Department column
-            const deptCell = document.createElement('td');
-            deptCell.textContent = getDepartmentName(report.department);
-            row.appendChild(deptCell);
+            const officerInfo = document.createElement('span');
+            officerInfo.textContent = `Officer: ${report.officerName}`;
+            meta.appendChild(officerInfo);
             
-            // Actions column
-            const actionsCell = document.createElement('td');
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'action-buttons';
+            card.appendChild(meta);
             
-            // View button
-            const viewButton = document.createElement('button');
-            viewButton.className = 'action-button';
-            viewButton.textContent = 'View';
-            viewButton.addEventListener('click', () => showReportDetails(report));
-            actionsDiv.appendChild(viewButton);
+            // Create department info
+            const deptInfo = document.createElement('div');
+            deptInfo.textContent = `Department: ${getDepartmentName(report.department)}`;
+            card.appendChild(deptInfo);
             
-            actionsCell.appendChild(actionsDiv);
-            row.appendChild(actionsCell);
+            // Create preview of details
+            const preview = document.createElement('div');
+            preview.className = 'report-card-preview';
+            preview.textContent = report.details;
+            card.appendChild(preview);
             
-            tableBody.appendChild(row);
+            reportsListContainer.appendChild(card);
         });
-    }
-    
-    // Update sort icons
-    document.querySelectorAll('th .sort-icon').forEach(icon => {
-        icon.textContent = '';
-    });
-    
-    const currentSortHeader = document.querySelector(`th[data-sort="${currentSortField}"] .sort-icon`);
-    if (currentSortHeader) {
-        currentSortHeader.textContent = currentSortDirection === 'asc' ? '↑' : '↓';
     }
 };
 

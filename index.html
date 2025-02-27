@@ -164,55 +164,21 @@
             <section id="data-consultation" class="section-content" style="display: none;">
                 <h2>Data Consultation</h2>
                 
-                <div class="filter-controls">
+                <div class="simple-filter-controls">
                     <div class="form-group">
-                        <label for="filterReportType">Filter by Report Type:</label>
-                        <select id="filterReportType">
-                            <option value="">All Report Types</option>
-                            <option value="navigation">Navigation Report</option>
-                            <option value="equipment">Equipment Status</option>
-                            <option value="incident">Incident Report</option>
-                            <option value="weather">Weather Update</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="filterDepartment">Filter by Department:</label>
-                        <select id="filterDepartment">
-                            <option value="">All Departments</option>
-                            <option value="deck">Deck Department</option>
-                            <option value="engine">Engine Department</option>
-                            <option value="management">Management</option>
-                            <option value="safety">Safety & Security</option>
-                            <option value="operations">Operations</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="searchReports">Search Reports:</label>
-                        <input type="text" id="searchReports" placeholder="Search by name, ID, or details...">
+                        <label for="searchReports">Quick Search:</label>
+                        <input type="text" id="searchReports" placeholder="Search reports...">
                     </div>
                     
                     <button id="exportReports" class="secondary">Export to CSV</button>
                 </div>
                 
-                <div class="reports-table-container">
-                    <table id="reportsTable">
-                        <thead>
-                            <tr>
-                                <th data-sort="date">Date <span class="sort-icon">↓</span></th>
-                                <th data-sort="reportType">Report Type <span class="sort-icon"></span></th>
-                                <th data-sort="officerName">Officer Name <span class="sort-icon"></span></th>
-                                <th data-sort="department">Department <span class="sort-icon"></span></th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="reportsTableBody">
-                            <!-- Reports will be populated here by JavaScript -->
-                        </tbody>
-                    </table>
+                <div class="reports-list-container">
+                    <div id="reportsListContainer">
+                        <!-- Reports will be populated here by JavaScript -->
+                    </div>
                     <div id="noReportsMessage" style="display: none; text-align: center; padding: 20px;">
-                        No reports found. Please adjust your filters or add new reports.
+                        No reports found. Please add new reports in the Data Entry section.
                     </div>
                 </div>
                 
