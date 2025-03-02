@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#003366">
     
     <!-- Security headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.openweathermap.org; img-src 'self' https://openweathermap.org">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     
@@ -18,7 +18,10 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/styles.css?v=2">
+    <link rel="stylesheet" href="css/styles.css?v=3">
+    
+    <!-- Authentication -->
+    <script src="js/auth.js?v=1" defer></script>
 </head>
 <body>
     <header>
@@ -27,7 +30,8 @@
 
     <nav>
         <div class="container">
-            <a href="#data-entry" aria-current="page">Data Entry</a>
+            <a href="#dashboard" aria-current="page">Dashboard</a>
+            <a href="#data-entry">Data Entry</a>
             <a href="#data-consultation">Data Consultation</a>
             <a href="#report-visualization">Report Visualization</a>
         </div>
@@ -35,6 +39,118 @@
 
     <div class="container">
         <main>
+            <section id="dashboard" class="section-content active">
+                <h2>Resource Monitoring Dashboard</h2>
+                <div class="dashboard-grid">
+                    <div class="resource-card engine-management">
+                        <h3>Engine Management</h3>
+                        <div class="engine-controls">
+                            <button id="engineToggle" class="engine-button">Start Engine</button>
+                            <div class="engine-info">
+                                <p>Status: <span id="engineRunningStatus">Stopped</span></p>
+                                <p>Hours: <span id="engineHours">0</span></p>
+                            </div>
+                            <div class="consumption-rates">
+                                <div class="rate-input">
+                                    <label for="fuelRate">Fuel Rate (L/h):</label>
+                                    <input type="number" id="fuelRate" value="100" min="0" step="1">
+                                </div>
+                                <div class="rate-input">
+                                    <label for="oilRate">Oil Rate (L/h):</label>
+                                    <input type="number" id="oilRate" value="10" min="0" step="0.1">
+                                </div>
+                                <button id="updateRates" class="secondary">Update Rates</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="resource-card fuel">
+                        <h3>Fuel Status</h3>
+                        <div class="gauge-container">
+                            <canvas id="fuelGauge"></canvas>
+                        </div>
+                        <div class="resource-details">
+                            <p class="level">Level: <span id="fuelLevel">--</span>%</p>
+                            <p class="range">Range: <span id="fuelRange">--</span> nautical miles</p>
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card oil">
+                        <h3>Engine Oil Status</h3>
+                        <div class="gauge-container">
+                            <canvas id="oilGauge"></canvas>
+                        </div>
+                        <div class="resource-details">
+                            <p class="level">Level: <span id="oilLevel">--</span>%</p>
+                            <p class="status">Status: <span id="engineStatus">--</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card food">
+                        <h3>Food Supplies</h3>
+                        <div class="gauge-container">
+                            <canvas id="foodGauge"></canvas>
+                        </div>
+                        <div class="resource-details">
+                            <p class="level">Stock Level: <span id="foodLevel">--</span>%</p>
+                            <p class="duration">Duration: <span id="foodDuration">--</span> days</p>
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card water">
+                        <h3>Fresh Water</h3>
+                        <div class="gauge-container">
+                            <canvas id="waterGauge"></canvas>
+                        </div>
+                        <div class="resource-details">
+                            <p class="level">Level: <span id="waterLevel">--</span>%</p>
+                            <p class="duration">Duration: <span id="waterDuration">--</span> days</p>
+                        </div>
+                    </div>
+
+                    <div class="resource-card weather">
+                        <h3>Weather Conditions</h3>
+                        <div class="weather-info">
+                            <div id="weatherData">Loading weather data...</div>
+                        </div>
+                    </div>
+
+                    <div class="resource-card delivery-log">
+                        <h3>Record Delivery</h3>
+                        <div class="delivery-form">
+                            <div class="form-group">
+                                <label for="deliveryType">Type:</label>
+                                <select id="deliveryType">
+                                    <option value="fuel">Fuel</option>
+                                    <option value="oil">Engine Oil</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="deliveryAmount">Amount (L):</label>
+                                <input type="number" id="deliveryAmount" min="0" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="deliveryDoc">Document Reference:</label>
+                                <input type="text" id="deliveryDoc" placeholder="Enter document number">
+                            </div>
+                            <button id="recordDelivery" class="primary">Record Delivery</button>
+                        </div>
+                        <div class="recent-deliveries">
+                            <h4>Recent Deliveries</h4>
+                            <div id="deliveriesList" class="deliveries-list">
+                                No recent deliveries
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="resource-card alerts">
+                        <h3>System Alerts</h3>
+                        <div id="alertsList" class="alerts-list">
+                            No active alerts
+                        </div>
+                    </div>
+                </div>
+            </section>
             <aside>
                 <h2>Quick Actions</h2>
                 <ul>
@@ -283,7 +399,9 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
-    <script src="js/app.js?v=3" defer></script>
+    <script src="js/auth.js?v=1" defer></script>
+    <script src="js/app.js?v=4" defer></script>
+    <script src="js/dashboard.js?v=2" defer></script>
     <script src="js/sw-register.js?v=2" defer></script>
 </body>
 </html>

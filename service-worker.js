@@ -1,34 +1,123 @@
-const CACHE_NAME = 'mv-sigyn-v5';
-const STATIC_CACHE = 'static-v5';
-const DYNAMIC_CACHE = 'dynamic-v5';
+const CACHE_NAME = 'mv-sigyn-v6';
+const STATIC_CACHE = 'static-v6';
+const DYNAMIC_CACHE = 'dynamic-v6';
+const OFFLINE_CACHE = 'offline-v6';
+
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
-    '/css/styles.css?v=2',
-    '/js/app.js?v=3',
+    '/css/styles.css?v=3',
+    '/js/app.js?v=4',
+    '/js/auth.js?v=1',
+    '/js/dashboard.js?v=2',
     '/js/sw-register.js?v=2',
     '/assets/favicon.png',
+    '/assets/alert.mp3',
     'https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js'
 ];
 
-// Security headers
+// Offline fallback page
+const OFFLINE_PAGE = '/offline.html';
+
+// Security headers with updated CSP for auth endpoints
 const securityHeaders = {
-    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self'",
+    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.openweathermap.org; img-src 'self' https://openweathermap.org",
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)'
 };
 
-// Install event - cache assets with improved error handling and versioning
+// API endpoints that should not be cached
+const API_ENDPOINTS = [
+    '/api/auth/',
+    '/api/resources/',
+    '/api/alerts/',
+    '/api/engine/',
+    '/api/weather'
+];
+
+// Create offline page
+const createOfflinePage = () => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - MV Sigyn</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background-color: #f0f7ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .offline-message {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 { color: #003366; }
+        .retry-button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .retry-button:hover {
+            background: #003366;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-message">
+        <h1>You're Offline</h1>
+        <p>The MV Sigyn dashboard requires an internet connection to monitor vessel resources.</p>
+        <p>Please check your connection and try again.</p>
+        <button class="retry-button" onclick="window.location.reload()">Retry Connection</button>
+    </div>
+</body>
+</html>
+`;
+
+// Install event - cache assets and create offline page
 self.addEventListener('install', event => {
     event.waitUntil(
         Promise.all([
+            // Cache static assets
             caches.open(STATIC_CACHE).then(cache => {
                 console.log('Caching static assets');
                 return cache.addAll(ASSETS_TO_CACHE);
             }),
+            // Create and cache offline page
+            caches.open(OFFLINE_CACHE).then(cache => {
+                console.log('Creating offline page');
+                return cache.put(OFFLINE_PAGE, new Response(
+                    createOfflinePage(),
+                    {
+                        headers: {
+                            'Content-Type': 'text/html',
+                            ...securityHeaders
+                        }
+                    }
+                ));
+            }),
+            // Prepare dynamic cache
             caches.open(DYNAMIC_CACHE).then(cache => {
                 console.log('Preparing dynamic cache');
             })
@@ -67,7 +156,7 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch event with improved caching strategy and security headers
+// Fetch event with improved caching strategy, API handling, and offline support
 self.addEventListener('fetch', event => {
     // Apply security headers to same-origin responses
     const applySecurityHeaders = (response) => {
@@ -85,10 +174,44 @@ self.addEventListener('fetch', event => {
         return response;
     };
 
-    // Handle different types of requests
+    // Check if request is for an API endpoint
+    const isApiRequest = API_ENDPOINTS.some(endpoint => 
+        event.request.url.includes(endpoint)
+    );
+
+    // Handle API requests
+    if (isApiRequest) {
+        event.respondWith(
+            fetch(event.request)
+                .catch(error => {
+                    console.error('API request failed:', error);
+                    return new Response(
+                        JSON.stringify({ error: 'Network error', offline: true }),
+                        {
+                            status: 503,
+                            headers: { 'Content-Type': 'application/json' }
+                        }
+                    );
+                })
+        );
+        return;
+    }
+
+    // Handle non-GET requests
     if (event.request.method !== 'GET') {
-        // For non-GET requests, network-only
-        event.respondWith(fetch(event.request));
+        event.respondWith(
+            fetch(event.request)
+                .catch(error => {
+                    console.error('Non-GET request failed:', error);
+                    return new Response(
+                        JSON.stringify({ error: 'Network error', offline: true }),
+                        {
+                            status: 503,
+                            headers: { 'Content-Type': 'application/json' }
+                        }
+                    );
+                })
+        );
         return;
     }
 
@@ -116,11 +239,8 @@ self.addEventListener('fetch', event => {
                     })
                     .catch(error => {
                         console.error('Network fetch failed:', error);
-                        // Return cached response if available
-                        return cachedResponse || new Response('Offline', {
-                            status: 503,
-                            statusText: 'Service Unavailable'
-                        });
+                        // Return cached response or offline page
+                        return cachedResponse || caches.match(OFFLINE_PAGE);
                     });
 
                 return cachedResponse || fetchPromise;
@@ -128,67 +248,171 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Handle background sync for offline form submissions
+// Handle background sync for offline data
 self.addEventListener('sync', event => {
     if (event.tag === 'sync-reports') {
-        event.waitUntil(
-            // Get all reports from IndexedDB that need to be synced
-            // and send them to the server
-            syncReports()
-        );
+        event.waitUntil(syncReports());
+    } else if (event.tag === 'sync-alerts') {
+        event.waitUntil(syncAlerts());
+    } else if (event.tag === 'sync-resources') {
+        event.waitUntil(syncResources());
     }
 });
 
-// Handle push notifications
+// Handle push notifications with improved options
 self.addEventListener('push', event => {
+    const data = event.data.json();
+    
     const options = {
-        body: event.data.text(),
+        body: data.message,
         icon: '/assets/favicon.png',
         badge: '/assets/favicon.png',
         vibrate: [100, 50, 100],
         data: {
-            dateOfArrival: Date.now(),
-            primaryKey: 1
+            timestamp: Date.now(),
+            type: data.type,
+            resourceId: data.resourceId
         },
         actions: [
             {
-                action: 'explore',
-                title: 'View Report'
+                action: 'view',
+                title: 'View Details'
             },
             {
-                action: 'close',
-                title: 'Close'
+                action: 'acknowledge',
+                title: 'Acknowledge'
             }
-        ]
+        ],
+        tag: data.type === 'critical' ? 'critical-alert' : 'alert',
+        renotify: data.type === 'critical'
     };
 
     event.waitUntil(
-        self.registration.showNotification('MV Sigyn Report System', options)
+        self.registration.showNotification(
+            `MV Sigyn ${data.type.toUpperCase()} Alert`,
+            options
+        )
     );
 });
 
-// Handle notification clicks
+// Handle notification clicks with improved navigation
 self.addEventListener('notificationclick', event => {
     event.notification.close();
 
-    if (event.action === 'explore') {
-        // Open the app and navigate to the specific report
+    if (event.action === 'view') {
+        // Open the app and navigate to the specific resource
         event.waitUntil(
-            clients.openWindow('/')
+            clients.openWindow(`/#resource=${event.notification.data.resourceId}`)
+        );
+    } else if (event.action === 'acknowledge') {
+        // Acknowledge the alert
+        event.waitUntil(
+            fetch(`/api/alerts/${event.notification.data.resourceId}/acknowledge`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
         );
     }
 });
 
-// Utility function to sync reports
+// Utility functions for background sync
 async function syncReports() {
-    try {
-        // Here you would implement the logic to:
-        // 1. Get unsent reports from IndexedDB
-        // 2. Send them to your server
-        // 3. Update their status in IndexedDB
-        console.log('Syncing reports...');
-    } catch (error) {
-        console.error('Error syncing reports:', error);
-        throw error;
+    const db = await openDB();
+    const unsentReports = await db.getAll('reports', 'unsent');
+    
+    for (const report of unsentReports) {
+        try {
+            const response = await fetch('/api/reports', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(report)
+            });
+
+            if (response.ok) {
+                await db.delete('reports', report.id);
+            }
+        } catch (error) {
+            console.error('Error syncing report:', error);
+        }
     }
+}
+
+async function syncAlerts() {
+    const db = await openDB();
+    const unsentAlerts = await db.getAll('alerts', 'unsent');
+    
+    for (const alert of unsentAlerts) {
+        try {
+            const response = await fetch('/api/alerts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(alert)
+            });
+
+            if (response.ok) {
+                await db.delete('alerts', alert.id);
+            }
+        } catch (error) {
+            console.error('Error syncing alert:', error);
+        }
+    }
+}
+
+async function syncResources() {
+    const db = await openDB();
+    const unsentUpdates = await db.getAll('resources', 'unsent');
+    
+    for (const update of unsentUpdates) {
+        try {
+            const response = await fetch(`/api/resources/${update.type}/level`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(update)
+            });
+
+            if (response.ok) {
+                await db.delete('resources', update.id);
+            }
+        } catch (error) {
+            console.error('Error syncing resource update:', error);
+        }
+    }
+}
+
+// IndexedDB helper
+async function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('mv-sigyn-offline', 1);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Create stores with indexes
+            if (!db.objectStoreNames.contains('reports')) {
+                const reportsStore = db.createObjectStore('reports', { keyPath: 'id' });
+                reportsStore.createIndex('status', 'status');
+            }
+            
+            if (!db.objectStoreNames.contains('alerts')) {
+                const alertsStore = db.createObjectStore('alerts', { keyPath: 'id' });
+                alertsStore.createIndex('status', 'status');
+            }
+            
+            if (!db.objectStoreNames.contains('resources')) {
+                const resourcesStore = db.createObjectStore('resources', { keyPath: 'id' });
+                resourcesStore.createIndex('status', 'status');
+            }
+        };
+    });
 }

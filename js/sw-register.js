@@ -1,3 +1,7 @@
+// Configuration
+const SW_VERSION = 'v6';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+
 // Service Worker Registration with enhanced error handling and offline support
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
@@ -6,7 +10,7 @@ if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             for (let registration of registrations) {
                 if (registration.active) {
-                    const currentVersion = registration.active.scriptURL.includes('v5');
+                    const currentVersion = registration.active.scriptURL.includes(SW_VERSION);
                     if (!currentVersion) {
                         await registration.unregister();
                         console.log('Outdated ServiceWorker unregistered');
@@ -21,28 +25,52 @@ if ('serviceWorker' in navigator) {
             
             console.log('ServiceWorker registration successful with scope:', registration.scope);
 
-            // Setup periodic sync if supported
+            // Setup periodic sync for different data types
             if ('periodicSync' in registration) {
-                try {
-                    await registration.periodicSync.register('sync-reports', {
-                        minInterval: 24 * 60 * 60 * 1000 // 24 hours
-                    });
-                    console.log('Periodic sync registered');
-                } catch (error) {
-                    console.log('Periodic sync could not be registered:', error);
+                const syncOptions = {
+                    reports: { minInterval: 24 * 60 * 60 * 1000 }, // 24 hours
+                    alerts: { minInterval: 15 * 60 * 1000 },       // 15 minutes
+                    resources: { minInterval: 5 * 60 * 1000 }      // 5 minutes
+                };
+
+                for (const [type, options] of Object.entries(syncOptions)) {
+                    try {
+                        await registration.periodicSync.register(`sync-${type}`, options);
+                        console.log(`Periodic sync registered for ${type}`);
+                    } catch (error) {
+                        console.log(`Periodic sync could not be registered for ${type}:`, error);
+                    }
                 }
             }
 
             // Setup push notifications if supported
             if ('pushManager' in registration) {
                 try {
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(
-                            'YOUR_PUBLIC_VAPID_KEY_HERE' // Replace with actual VAPID key
-                        )
-                    });
-                    console.log('Push notification subscription:', subscription);
+                    // Check if we already have permission
+                    if (Notification.permission === 'granted') {
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                        });
+
+                        // Send subscription to server
+                        await fetch('/api/notifications/subscribe', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify(subscription)
+                        });
+
+                        console.log('Push notification subscription successful');
+                    } else if (Notification.permission !== 'denied') {
+                        const permission = await Notification.requestPermission();
+                        if (permission === 'granted') {
+                            // Retry subscription after permission granted
+                            window.location.reload();
+                        }
+                    }
                 } catch (error) {
                     console.log('Push subscription failed:', error);
                 }
@@ -50,49 +78,98 @@ if ('serviceWorker' in navigator) {
 
         } catch (error) {
             console.error('ServiceWorker registration failed:', error);
-            // Show offline notification to user
-            showOfflineNotification();
+            showOfflineNotification('Service Worker registration failed. Some features may be limited.');
         }
     });
 
     // Listen for offline/online events
-    window.addEventListener('online', () => {
+    window.addEventListener('online', async () => {
         document.body.classList.remove('offline');
-        // Trigger sync when coming back online
-        navigator.serviceWorker.ready.then(registration => {
-            registration.sync.register('sync-reports');
-        });
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            // Sync all data types
+            await Promise.all([
+                registration.sync.register('sync-reports'),
+                registration.sync.register('sync-alerts'),
+                registration.sync.register('sync-resources')
+            ]);
+            showToast('Connection restored. Syncing data...', 'success');
+        } catch (error) {
+            console.error('Error syncing data:', error);
+        }
     });
 
     window.addEventListener('offline', () => {
         document.body.classList.add('offline');
+        showOfflineNotification('You are offline. Changes will be saved and synced when connection is restored.');
     });
 }
 
-// Helper function to convert VAPID key
+// Helper functions
 function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
+    try {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
 
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
 
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    } catch (error) {
+        console.error('Error converting VAPID key:', error);
+        throw error;
     }
-    return outputArray;
 }
 
-// Show offline notification
-function showOfflineNotification() {
+function showOfflineNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'offline-notification';
-    notification.textContent = 'You are currently offline. Some features may be limited.';
+    notification.innerHTML = `
+        <div class="offline-content">
+            <span class="offline-icon">📡</span>
+            <span class="offline-message">${message}</span>
+            <button class="offline-close" aria-label="Close notification">&times;</button>
+        </div>
+    `;
+
+    // Add close button functionality
+    const closeButton = notification.querySelector('.offline-close');
+    closeButton.addEventListener('click', () => notification.remove());
+
     document.body.appendChild(notification);
 
+    // Auto-hide after 10 seconds
     setTimeout(() => {
-        notification.remove();
+        if (document.body.contains(notification)) {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 10000);
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
+        <span class="toast-message">${message}</span>
+    `;
+    
+    const container = document.querySelector('.toast-container') || (() => {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+        return container;
+    })();
+    
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
     }, 5000);
 }
