@@ -1,19 +1,110 @@
 // Utility functions
 const showToast = (message, type = 'success') => {
+    const toastContainer = document.querySelector('.toast-container') || (() => {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+        return container;
+    })();
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
+    
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.innerHTML = getToastIcon(type);
+    
+    const content = document.createElement('span');
+    content.textContent = message;
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', () => toast.remove());
+
+    toast.appendChild(icon);
+    toast.appendChild(content);
+    toast.appendChild(closeBtn);
+    toastContainer.appendChild(toast);
 
     setTimeout(() => {
         toast.remove();
-    }, 3000);
+        if (toastContainer.children.length === 0) {
+            toastContainer.remove();
+        }
+    }, 5000);
+};
+
+const getToastIcon = (type) => {
+    switch (type) {
+        case 'success':
+            return '✓';
+        case 'error':
+            return '✕';
+        case 'warning':
+            return '⚠';
+        case 'info':
+            return 'ℹ';
+        default:
+            return '';
+    }
 };
 
 // Format date for display
 const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    };
     return new Date(dateString).toLocaleDateString(undefined, options);
+};
+
+// Handle file attachments
+const handleFileAttachments = (files) => {
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/png'
+    ];
+
+    const validFiles = Array.from(files).filter(file => {
+        if (file.size > maxFileSize) {
+            showToast(`${file.name} is too large. Maximum size is 10MB.`, 'error');
+            return false;
+        }
+        if (!allowedTypes.includes(file.type)) {
+            showToast(`${file.name} is not a supported file type.`, 'error');
+            return false;
+        }
+        return true;
+    });
+
+    return validFiles;
+};
+
+// Update vessel status display
+const updateVesselStatus = (status) => {
+    const statusBadge = document.getElementById('currentStatus');
+    if (statusBadge) {
+        statusBadge.textContent = `Status: ${getVesselStatusName(status)}`;
+        statusBadge.dataset.status = status;
+    }
+};
+
+const getVesselStatusName = (status) => {
+    const statuses = {
+        'at-sea': 'At Sea (On Route)',
+        'docked': 'Docked in Port',
+        'anchored': 'At Anchor',
+        'maintenance': 'Under Maintenance'
+    };
+    return statuses[status] || 'Unknown';
 };
 
 // Get readable names for report types and departments
@@ -141,18 +232,94 @@ const displayErrors = (form, errors) => {
 };
 
 // Data persistence
-const saveReport = (report) => {
+const saveReport = async (report) => {
     const reports = JSON.parse(localStorage.getItem('reports') || '[]');
-    reports.push({
+    
+    // Handle file attachments
+    if (report.attachments && report.attachments.length > 0) {
+        const attachmentPromises = report.attachments.map(file => 
+            new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    resolve({
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        data: reader.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            })
+        );
+        
+        report.attachments = await Promise.all(attachmentPromises);
+    }
+
+    const newReport = {
         ...report,
         id: Date.now(),
         timestamp: new Date().toISOString()
-    });
+    };
+
+    reports.push(newReport);
     localStorage.setItem('reports', JSON.stringify(reports));
+    
+    // Update vessel status
+    if (report.vesselStatus) {
+        localStorage.setItem('currentVesselStatus', report.vesselStatus);
+        updateVesselStatus(report.vesselStatus);
+    }
 };
 
 const getReports = () => {
-    return JSON.parse(localStorage.getItem('reports') || '[]');
+    const reports = JSON.parse(localStorage.getItem('reports') || '[]');
+    const currentStatus = localStorage.getItem('currentVesselStatus');
+    
+    if (currentStatus) {
+        updateVesselStatus(currentStatus);
+    }
+    
+    return reports;
+};
+
+// Download report attachments
+const downloadAttachment = (attachment) => {
+    const link = document.createElement('a');
+    link.href = attachment.data;
+    link.download = attachment.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// Download selected reports
+const downloadSelectedReports = (selectedReports) => {
+    const reportsData = selectedReports.map(report => ({
+        type: getReportTypeName(report.reportType),
+        status: getVesselStatusName(report.vesselStatus),
+        officer: report.officerName,
+        date: formatDate(report.date),
+        details: report.details,
+        attachments: report.attachments ? report.attachments.map(a => a.name).join(', ') : 'None'
+    }));
+
+    const csv = convertToCSV(reportsData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `mv-sigyn-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const convertToCSV = (arr) => {
+    const array = [Object.keys(arr[0]), ...arr.map(obj => Object.values(obj))];
+    return array.map(row => 
+        row.map(String)
+           .map(v => v.includes(',') ? `"${v}"` : v)
+           .join(',')
+    ).join('\n');
 };
 
 // Form handling

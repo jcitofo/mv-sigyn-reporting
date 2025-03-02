@@ -115,6 +115,17 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="vesselStatus">Vessel Status:</label>
+                        <select id="vesselStatus" name="vesselStatus" required aria-required="true">
+                            <option value="">Select vessel status</option>
+                            <option value="at-sea">At Sea (On Route)</option>
+                            <option value="docked">Docked in Port</option>
+                            <option value="anchored">At Anchor</option>
+                            <option value="maintenance">Under Maintenance</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="reportType">Report Type:</label>
                         <select id="reportType" name="reportType" required aria-required="true">
                             <option value="">Select a report type</option>
@@ -128,6 +139,16 @@
                     <div class="form-group">
                         <label for="date">Date:</label>
                         <input type="date" id="date" name="date" required aria-required="true">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="attachments">Attachments:</label>
+                        <input type="file" id="attachments" name="attachments" multiple
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            aria-describedby="attachmentsHelp">
+                        <small id="attachmentsHelp" class="help-text">
+                            Supported formats: PDF, Word documents, Images (JPG, PNG)
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -164,7 +185,24 @@
             <section id="data-consultation" class="section-content" style="display: none;">
                 <h2>Data Consultation</h2>
                 
+                <div class="vessel-status-indicator">
+                    <h3>Current Vessel Status</h3>
+                    <div class="status-badge" id="currentStatus">
+                        Status: Unknown
+                    </div>
+                </div>
+
                 <div class="simple-filter-controls">
+                    <div class="form-group">
+                        <label for="filterStatus">Filter by Status:</label>
+                        <select id="filterStatus">
+                            <option value="">All Statuses</option>
+                            <option value="at-sea">At Sea</option>
+                            <option value="docked">Docked</option>
+                            <option value="anchored">At Anchor</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="searchReports">Quick Search:</label>
                         <input type="text" id="searchReports" placeholder="Search reports...">
@@ -174,6 +212,14 @@
                 </div>
                 
                 <div class="reports-list-container">
+                    <div class="reports-actions">
+                        <button id="downloadSelected" class="secondary" disabled>
+                            Download Selected
+                        </button>
+                        <button id="exportReports" class="secondary">
+                            Export to CSV
+                        </button>
+                    </div>
                     <div id="reportsListContainer">
                         <!-- Reports will be populated here by JavaScript -->
                     </div>

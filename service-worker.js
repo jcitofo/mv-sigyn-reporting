@@ -1,4 +1,6 @@
-const CACHE_NAME = 'mv-sigyn-v4'; // Incrementing version to force update
+const CACHE_NAME = 'mv-sigyn-v5';
+const STATIC_CACHE = 'static-v5';
+const DYNAMIC_CACHE = 'dynamic-v5';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -9,20 +11,36 @@ const ASSETS_TO_CACHE = [
     'https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js'
 ];
 
-// Install event - cache assets
+// Security headers
+const securityHeaders = {
+    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self'",
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+};
+
+// Install event - cache assets with improved error handling and versioning
 self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Opened cache');
+        Promise.all([
+            caches.open(STATIC_CACHE).then(cache => {
+                console.log('Caching static assets');
                 return cache.addAll(ASSETS_TO_CACHE);
+            }),
+            caches.open(DYNAMIC_CACHE).then(cache => {
+                console.log('Preparing dynamic cache');
             })
-            .catch(error => {
-                console.error('Error in install handler:', error);
-            })
+        ])
+        .catch(error => {
+            console.error('Cache installation failed:', error);
+            throw error;
+        })
+        .finally(() => {
+            self.skipWaiting();
+        })
     );
-    // Force the waiting service worker to become the active service worker
-    self.skipWaiting();
 });
 
 // Activate event - clean up old caches
@@ -49,30 +67,63 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch event - network first, falling back to cache
+// Fetch event with improved caching strategy and security headers
 self.addEventListener('fetch', event => {
+    // Apply security headers to same-origin responses
+    const applySecurityHeaders = (response) => {
+        if (response.url.startsWith(self.location.origin)) {
+            const newHeaders = new Headers(response.headers);
+            Object.entries(securityHeaders).forEach(([key, value]) => {
+                newHeaders.set(key, value);
+            });
+            return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+            });
+        }
+        return response;
+    };
+
+    // Handle different types of requests
+    if (event.request.method !== 'GET') {
+        // For non-GET requests, network-only
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
+    // For GET requests, use stale-while-revalidate strategy
     event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                // Clone the response because it's a one-time use stream
-                const responseToCache = response.clone();
+        caches.match(event.request)
+            .then(cachedResponse => {
+                const fetchPromise = fetch(event.request)
+                    .then(networkResponse => {
+                        // Clone the response before using it
+                        const responseToCache = networkResponse.clone();
 
-                // Cache the updated version
-                if (response.status === 200) {
-                    caches.open(CACHE_NAME)
-                        .then(cache => {
-                            cache.put(event.request, responseToCache);
-                        })
-                        .catch(error => {
-                            console.error('Error caching new resource:', error);
+                        // Cache successful responses
+                        if (networkResponse.status === 200) {
+                            caches.open(DYNAMIC_CACHE)
+                                .then(cache => {
+                                    cache.put(event.request, responseToCache);
+                                })
+                                .catch(error => {
+                                    console.error('Error caching new resource:', error);
+                                });
+                        }
+
+                        return applySecurityHeaders(networkResponse);
+                    })
+                    .catch(error => {
+                        console.error('Network fetch failed:', error);
+                        // Return cached response if available
+                        return cachedResponse || new Response('Offline', {
+                            status: 503,
+                            statusText: 'Service Unavailable'
                         });
-                }
+                    });
 
-                return response;
-            })
-            .catch(() => {
-                // If network fails, try to get it from the cache
-                return caches.match(event.request);
+                return cachedResponse || fetchPromise;
             })
     );
 });
