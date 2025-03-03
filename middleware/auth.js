@@ -1,60 +1,37 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Verify JWT token middleware
+// Bypass authentication for demo purposes
 const auth = async (req, res, next) => {
-    try {
-        const token = req.header('Authorization')?.replace('Bearer ', '');
-        
-        if (!token) {
-            throw new Error('No authentication token provided');
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.userId);
-
-        if (!user) {
-            throw new Error('User not found');
-        }
-
-        req.user = user;
-        req.token = token;
-        next();
-    } catch (error) {
-        res.status(401).json({ error: 'Authentication failed: ' + error.message });
-    }
-};
-
-// Check role middleware
-const checkRole = (roles) => {
-    return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ 
-                error: 'Access denied: Insufficient permissions' 
-            });
-        }
-        next();
+    // Create a demo captain user
+    req.user = {
+        _id: 'demo_captain',
+        username: 'captain',
+        role: 'captain',
+        email: 'captain@mvsigyn.com',
+        alertPreferences: {
+            email: true,
+            sms: true,
+            sound: true
+        },
+        thresholds: {
+            fuel: { warning: 35, critical: 20 },
+            oil: { warning: 35, critical: 20 },
+            food: { warning: 35, critical: 20 },
+            water: { warning: 35, critical: 20 }
+        },
+        canModifySettings: () => true
     };
-};
-
-// Validate resource access
-const validateResourceAccess = (req, res, next) => {
-    const { action } = req.body;
-    
-    // Allow read access to all authenticated users
-    if (req.method === 'GET') {
-        return next();
-    }
-
-    // Check if user has permission to modify settings
-    if (['update', 'refill', 'delivery'].includes(action) && !req.user.canModifySettings()) {
-        return res.status(403).json({
-            error: 'Access denied: Only Captain and Engineer can modify resource settings'
-        });
-    }
-
     next();
 };
+
+// Check role middleware (bypassed for demo)
+const checkRole = (roles) => {
+    return (req, res, next) => next();
+};
+
+// Validate resource access (bypassed for demo)
+const validateResourceAccess = (req, res, next) => next();
 
 // Rate limiting middleware
 const rateLimit = {

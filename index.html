@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#003366">
     
     <!-- Security headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.openweathermap.org; img-src 'self' https://openweathermap.org">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' https://api.openweathermap.org; img-src 'self' https://openweathermap.org">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     
@@ -20,8 +20,12 @@
     <!-- Styles -->
     <link rel="stylesheet" href="css/styles.css?v=3">
     
-    <!-- Authentication -->
-    <script src="js/auth.js?v=1" defer></script>
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.bundle.min.js"></script>
+    <script type="module" src="js/auth.js?v=2"></script>
+    <script type="module" src="js/app.js?v=5"></script>
+    <script type="module" src="js/dashboard.js?v=3"></script>
+    <script type="module" src="js/sw-register.js?v=3"></script>
 </head>
 <body>
     <header>
@@ -42,6 +46,7 @@
             <section id="dashboard" class="section-content active">
                 <h2>Resource Monitoring Dashboard</h2>
                 <div class="dashboard-grid">
+                    <!-- Engine Management -->
                     <div class="resource-card engine-management">
                         <h3>Engine Management</h3>
                         <div class="engine-controls">
@@ -64,57 +69,77 @@
                         </div>
                     </div>
 
-                    <div class="resource-card fuel">
-                        <h3>Fuel Status</h3>
-                        <div class="gauge-container">
-                            <canvas id="fuelGauge"></canvas>
+                    <!-- Resource Gauges -->
+                    <div class="resource-gauges">
+                        <!-- Fuel Status -->
+                        <div class="resource-card fuel">
+                            <h3>Fuel Status</h3>
+                            <div class="gauge-container">
+                                <canvas id="fuelGauge"></canvas>
+                            </div>
+                            <div class="resource-details">
+                                <p class="level">Level: <span id="fuelLevel">--</span>%</p>
+                                <p class="range">Range: <span id="fuelRange">--</span> nautical miles</p>
+                            </div>
                         </div>
-                        <div class="resource-details">
-                            <p class="level">Level: <span id="fuelLevel">--</span>%</p>
-                            <p class="range">Range: <span id="fuelRange">--</span> nautical miles</p>
+                        
+                        <!-- Engine Oil Status -->
+                        <div class="resource-card oil">
+                            <h3>Engine Oil Status</h3>
+                            <div class="gauge-container">
+                                <canvas id="oilGauge"></canvas>
+                            </div>
+                            <div class="resource-details">
+                                <p class="level">Level: <span id="oilLevel">--</span>%</p>
+                                <p class="status">Status: <span id="engineStatus">--</span></p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="resource-card oil">
-                        <h3>Engine Oil Status</h3>
-                        <div class="gauge-container">
-                            <canvas id="oilGauge"></canvas>
+                        
+                        <!-- Food Supplies -->
+                        <div class="resource-card food">
+                            <h3>Food Supplies</h3>
+                            <div class="gauge-container">
+                                <canvas id="foodGauge"></canvas>
+                            </div>
+                            <div class="resource-details">
+                                <p class="level">Stock Level: <span id="foodLevel">--</span>%</p>
+                                <p class="duration">Duration: <span id="foodDuration">--</span> days</p>
+                            </div>
                         </div>
-                        <div class="resource-details">
-                            <p class="level">Level: <span id="oilLevel">--</span>%</p>
-                            <p class="status">Status: <span id="engineStatus">--</span></p>
-                        </div>
-                    </div>
-                    
-                    <div class="resource-card food">
-                        <h3>Food Supplies</h3>
-                        <div class="gauge-container">
-                            <canvas id="foodGauge"></canvas>
-                        </div>
-                        <div class="resource-details">
-                            <p class="level">Stock Level: <span id="foodLevel">--</span>%</p>
-                            <p class="duration">Duration: <span id="foodDuration">--</span> days</p>
-                        </div>
-                    </div>
-                    
-                    <div class="resource-card water">
-                        <h3>Fresh Water</h3>
-                        <div class="gauge-container">
-                            <canvas id="waterGauge"></canvas>
-                        </div>
-                        <div class="resource-details">
-                            <p class="level">Level: <span id="waterLevel">--</span>%</p>
-                            <p class="duration">Duration: <span id="waterDuration">--</span> days</p>
+                        
+                        <!-- Fresh Water -->
+                        <div class="resource-card water">
+                            <h3>Fresh Water</h3>
+                            <div class="gauge-container">
+                                <canvas id="waterGauge"></canvas>
+                            </div>
+                            <div class="resource-details">
+                                <p class="level">Level: <span id="waterLevel">--</span>%</p>
+                                <p class="duration">Duration: <span id="waterDuration">--</span> days</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="resource-card weather">
-                        <h3>Weather Conditions</h3>
-                        <div class="weather-info">
-                            <div id="weatherData">Loading weather data...</div>
+                    <!-- Weather and Alerts -->
+                    <div class="status-section">
+                        <!-- Weather Conditions -->
+                        <div class="resource-card weather">
+                            <h3>Weather Conditions</h3>
+                            <div class="weather-info">
+                                <div id="weatherData">Loading weather data...</div>
+                            </div>
+                        </div>
+
+                        <!-- System Alerts -->
+                        <div class="resource-card alerts">
+                            <h3>System Alerts</h3>
+                            <div id="alertsList" class="alerts-list">
+                                No active alerts
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Delivery Log -->
                     <div class="resource-card delivery-log">
                         <h3>Record Delivery</h3>
                         <div class="delivery-form">
@@ -140,13 +165,6 @@
                             <div id="deliveriesList" class="deliveries-list">
                                 No recent deliveries
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="resource-card alerts">
-                        <h3>System Alerts</h3>
-                        <div id="alertsList" class="alerts-list">
-                            No active alerts
                         </div>
                     </div>
                 </div>
@@ -396,12 +414,5 @@
             <p>Version 1.0.0 | <a href="#privacy-policy">Privacy Policy</a> | <a href="#terms">Terms of Use</a></p>
         </footer>
     </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
-    <script src="js/auth.js?v=1" defer></script>
-    <script src="js/app.js?v=4" defer></script>
-    <script src="js/dashboard.js?v=2" defer></script>
-    <script src="js/sw-register.js?v=2" defer></script>
 </body>
 </html>

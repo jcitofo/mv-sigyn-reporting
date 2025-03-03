@@ -1,8 +1,34 @@
-class AuthManager {
+export class AuthManager {
     constructor() {
-        this.token = localStorage.getItem('token');
-        this.user = JSON.parse(localStorage.getItem('user'));
-        this.setupAuthUI();
+        // Auto-login with demo captain account
+        const demoUser = {
+            _id: 'demo_captain',
+            username: 'captain',
+            role: 'captain',
+            email: 'captain@mvsigyn.com',
+            alertPreferences: {
+                email: true,
+                sms: true,
+                sound: true
+            },
+            thresholds: {
+                fuel: { warning: 35, critical: 20 },
+                oil: { warning: 35, critical: 20 },
+                food: { warning: 35, critical: 20 },
+                water: { warning: 35, critical: 20 }
+            }
+        };
+        
+        this.token = 'demo_token';
+        this.user = demoUser;
+        localStorage.setItem('token', this.token);
+        localStorage.setItem('user', JSON.stringify(this.user));
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setupAuthUI());
+        } else {
+            this.setupAuthUI();
+        }
     }
 
     setupAuthUI() {
@@ -10,123 +36,24 @@ class AuthManager {
         const header = document.querySelector('header');
         const authContainer = document.createElement('div');
         authContainer.className = 'auth-container';
-        authContainer.innerHTML = this.token ? this.getLoggedInUI() : this.getLoginUI();
+        authContainer.innerHTML = this.getLoggedInUI();
         header.appendChild(authContainer);
 
-        // Setup event listeners
-        if (!this.token) {
-            const loginForm = document.getElementById('loginForm');
-            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-        } else {
-            const logoutBtn = document.getElementById('logoutBtn');
-            logoutBtn.addEventListener('click', () => this.handleLogout());
-            
-            // Setup preferences if user can modify settings
-            if (this.user && ['captain', 'engineer'].includes(this.user.role)) {
-                const prefsBtn = document.getElementById('preferencesBtn');
-                prefsBtn.addEventListener('click', () => this.showPreferencesModal());
-            }
+        // Setup preferences button
+        const prefsBtn = document.getElementById('preferencesBtn');
+        if (prefsBtn) {
+            prefsBtn.addEventListener('click', () => this.showPreferencesModal());
         }
     }
 
-    getLoginUI() {
-        return `
-            <form id="loginForm" class="login-form">
-                <input type="text" name="username" placeholder="Username" required>
-                <input type="password" name="password" placeholder="Password" required>
-                <button type="submit">Login</button>
-            </form>
-        `;
-    }
-
     getLoggedInUI() {
-        const canModifySettings = this.user && ['captain', 'engineer'].includes(this.user.role);
         return `
             <div class="user-info">
                 <span class="username">${this.user.username}</span>
                 <span class="role">${this.user.role}</span>
-                ${canModifySettings ? 
-                    '<button id="preferencesBtn" class="preferences-btn">Preferences</button>' 
-                    : ''}
-                <button id="logoutBtn" class="logout-btn">Logout</button>
+                <button id="preferencesBtn" class="preferences-btn">Preferences</button>
             </div>
         `;
-    }
-
-    async handleLogin(event) {
-        event.preventDefault();
-        const form = event.target;
-        const username = form.username.value;
-        const password = form.password.value;
-
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Login failed');
-            }
-
-            const data = await response.json();
-            this.token = data.token;
-            this.user = data.user;
-
-            // Store auth data
-            localStorage.setItem('token', this.token);
-            localStorage.setItem('user', JSON.stringify(this.user));
-
-            // Update UI
-            const authContainer = document.querySelector('.auth-container');
-            authContainer.innerHTML = this.getLoggedInUI();
-
-            // Setup logged-in event listeners
-            const logoutBtn = document.getElementById('logoutBtn');
-            logoutBtn.addEventListener('click', () => this.handleLogout());
-
-            if (['captain', 'engineer'].includes(this.user.role)) {
-                const prefsBtn = document.getElementById('preferencesBtn');
-                prefsBtn.addEventListener('click', () => this.showPreferencesModal());
-            }
-
-            // Trigger page reload to refresh data with authenticated requests
-            window.location.reload();
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
-    }
-
-    async handleLogout() {
-        try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: this.getAuthHeaders()
-            });
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            // Clear auth data regardless of server response
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            this.token = null;
-            this.user = null;
-
-            // Update UI
-            const authContainer = document.querySelector('.auth-container');
-            authContainer.innerHTML = this.getLoginUI();
-
-            // Setup login form listener
-            const loginForm = document.getElementById('loginForm');
-            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-
-            // Reload page to reset state
-            window.location.reload();
-        }
     }
 
     showPreferencesModal() {
@@ -215,40 +142,23 @@ class AuthManager {
                 };
             });
 
-            const response = await fetch('/api/auth/preferences', {
-                method: 'PATCH',
-                headers: {
-                    ...this.getAuthHeaders(),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    alertPreferences,
-                    thresholds
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update preferences');
-            }
-
-            const data = await response.json();
+            // Update local user data
             this.user = {
                 ...this.user,
-                alertPreferences: data.alertPreferences,
-                thresholds: data.thresholds
+                alertPreferences,
+                thresholds
             };
             localStorage.setItem('user', JSON.stringify(this.user));
 
-            this.showToast('Preferences updated successfully', 'success');
+            showToast('Your preferences have been saved successfully', 'success');
             document.querySelector('.preferences-modal').remove();
 
             // Trigger resource monitor update if it exists
             if (window.resourceMonitor) {
-                window.resourceMonitor.updateThresholds(data.thresholds);
+                window.resourceMonitor.updateThresholds(thresholds);
             }
         } catch (error) {
-            this.showToast(error.message, 'error');
+            showToast(error.message || 'Failed to update preferences. Please try again.', 'error');
         }
     }
 
@@ -257,20 +167,30 @@ class AuthManager {
             'Authorization': `Bearer ${this.token}`
         } : {};
     }
-
-    showToast(message, type) {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
-            <span class="toast-message">${message}</span>
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    }
 }
 
+export const showToast = (message, type = 'success') => {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
+        <span class="toast-message">${message}</span>
+    `;
+    
+    const container = document.querySelector('.toast-container') || (() => {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+        return container;
+    })();
+    
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+};
+
 // Initialize authentication when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.authManager = new AuthManager();
-});
+const authManager = new AuthManager();
+export default authManager;

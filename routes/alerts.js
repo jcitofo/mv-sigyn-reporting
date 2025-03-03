@@ -6,20 +6,65 @@ const twilio = require('twilio');
 
 const router = express.Router();
 
-// Email configuration
-const emailTransporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+// Email configuration (with fallback for development)
+let emailTransporter;
+try {
+    emailTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+} catch (error) {
+    console.log('Email service not configured, notifications will be logged only');
+    emailTransporter = {
+        sendMail: async (options) => {
+            console.log('Email notification (mock):', options);
+            return { accepted: [options.to], rejected: [] };
+        }
+    };
+}
+
+// Twilio configuration (with fallback for development)
+let twilioClient;
+try {
+    twilioClient = twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+    );
+} catch (error) {
+    console.log('SMS service not configured, notifications will be logged only');
+    twilioClient = {
+        messages: {
+            create: async (options) => {
+                console.log('SMS notification (mock):', options);
+                return { sid: 'mock-sid' };
+            }
+        }
+    };
+}
+
+// Create new alert
+router.post('/', auth, async (req, res) => {
+    try {
+        const { resource, type, level, message, metadata } = req.body;
+        
+        const alert = await Alert.createAlert({
+            resource,
+            type,
+            level,
+            message,
+            metadata
+        });
+        
+        res.status(201).json(alert);
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to create alert: ' + error.message
+        });
     }
 });
-
-// Twilio configuration
-const twilioClient = twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-);
 
 // Get active alerts
 router.get('/active', auth, async (req, res) => {

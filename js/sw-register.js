@@ -1,6 +1,12 @@
+import { showToast } from './auth.js';
+
 // Configuration
 const SW_VERSION = 'v6';
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+// Create window.ENV if it doesn't exist
+window.ENV = window.ENV || {};
+// Set VAPID_PUBLIC_KEY with a fallback
+window.ENV.VAPID_PUBLIC_KEY = window.ENV.VAPID_PUBLIC_KEY || 'mock-public-key';
+const VAPID_PUBLIC_KEY = window.ENV.VAPID_PUBLIC_KEY;
 
 // Service Worker Registration with enhanced error handling and offline support
 if ('serviceWorker' in navigator) {
@@ -150,26 +156,4 @@ function showOfflineNotification(message) {
             setTimeout(() => notification.remove(), 300);
         }
     }, 10000);
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
-        <span class="toast-message">${message}</span>
-    `;
-    
-    const container = document.querySelector('.toast-container') || (() => {
-        const container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-        return container;
-    })();
-    
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.add('fade-out');
-        setTimeout(() => toast.remove(), 300);
-    }, 5000);
 }

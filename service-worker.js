@@ -1,16 +1,16 @@
-const CACHE_NAME = 'mv-sigyn-v6';
-const STATIC_CACHE = 'static-v6';
-const DYNAMIC_CACHE = 'dynamic-v6';
-const OFFLINE_CACHE = 'offline-v6';
+const CACHE_NAME = 'mv-sigyn-v7';
+const STATIC_CACHE = 'static-v7';
+const DYNAMIC_CACHE = 'dynamic-v7';
+const OFFLINE_CACHE = 'offline-v7';
 
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
     '/css/styles.css?v=3',
-    '/js/app.js?v=4',
-    '/js/auth.js?v=1',
-    '/js/dashboard.js?v=2',
-    '/js/sw-register.js?v=2',
+    '/js/app.js?v=5',
+    '/js/auth.js?v=2',
+    '/js/dashboard.js?v=3',
+    '/js/sw-register.js?v=3',
     '/assets/favicon.png',
     '/assets/alert.mp3',
     'https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js'
@@ -19,9 +19,9 @@ const ASSETS_TO_CACHE = [
 // Offline fallback page
 const OFFLINE_PAGE = '/offline.html';
 
-// Security headers with updated CSP for auth endpoints
+// Security headers with updated CSP for auth endpoints and modules
 const securityHeaders = {
-    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.openweathermap.org; img-src 'self' https://openweathermap.org",
+    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://api.openweathermap.org; img-src 'self' https://openweathermap.org; worker-src 'self'",
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',

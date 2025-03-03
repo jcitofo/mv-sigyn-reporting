@@ -1,38 +1,25 @@
-// Utility functions
-const showToast = (message, type = 'success') => {
-    const toastContainer = document.querySelector('.toast-container') || (() => {
-        const container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-        return container;
-    })();
+import authManager, { showToast } from './auth.js';
 
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    
-    const icon = document.createElement('span');
-    icon.className = 'toast-icon';
-    icon.innerHTML = getToastIcon(type);
-    
-    const content = document.createElement('span');
-    content.textContent = message;
-    
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'toast-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.addEventListener('click', () => toast.remove());
-
-    toast.appendChild(icon);
-    toast.appendChild(content);
-    toast.appendChild(closeBtn);
-    toastContainer.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-        if (toastContainer.children.length === 0) {
-            toastContainer.remove();
-        }
-    }, 5000);
+// Export utility functions
+export {
+    formatDate,
+    handleFileAttachments,
+    updateVesselStatus,
+    getVesselStatusName,
+    getReportTypeName,
+    getDepartmentName,
+    setLoading,
+    validateForm,
+    displayErrors,
+    saveReport,
+    getReports,
+    downloadAttachment,
+    downloadSelectedReports,
+    convertToCSV,
+    showSection,
+    renderReportsTable,
+    showReportDetails,
+    renderDashboard
 };
 
 const getToastIcon = (type) => {
