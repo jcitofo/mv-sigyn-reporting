@@ -10,7 +10,7 @@ const ASSETS_TO_CACHE = [
     '/js/app.js?v=5',
     '/js/auth.js?v=2',
     '/js/dashboard.js?v=3',
-    '/js/sw-register.js?v=3',
+    '/js/sw-register.js?v=4',
     '/assets/favicon.png',
     '/assets/alert.mp3',
     'https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js'
