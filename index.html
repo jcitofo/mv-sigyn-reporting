@@ -128,6 +128,14 @@
                             <div class="weather-info">
                                 <div id="weatherData">Loading weather data...</div>
                             </div>
+                            <div class="vessel-location">
+                                <h4>Vessel Location</h4>
+                                <div id="locationData">
+                                    <p>Location: <span id="locationName">--</span></p>
+                                    <p>Coordinates: <span id="locationCoords">--</span></p>
+                                </div>
+                                <button id="updateLocation" class="secondary">Update Location</button>
+                            </div>
                         </div>
 
                         <!-- System Alerts -->
@@ -141,17 +149,19 @@
 
                     <!-- Delivery Log -->
                     <div class="resource-card delivery-log">
-                        <h3>Record Delivery</h3>
+                        <h3>Resource Management <span id="commanderAccessStatus" class="commander-badge">Commander Access Required</span></h3>
                         <div class="delivery-form">
                             <div class="form-group">
-                                <label for="deliveryType">Type:</label>
+                                <label for="deliveryType">Resource Type:</label>
                                 <select id="deliveryType">
                                     <option value="fuel">Fuel</option>
                                     <option value="oil">Engine Oil</option>
+                                    <option value="food">Food</option>
+                                    <option value="water">Water</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="deliveryAmount">Amount (L):</label>
+                                <label for="deliveryAmount">Amount:</label>
                                 <input type="number" id="deliveryAmount" min="0" step="1">
                             </div>
                             <div class="form-group">
@@ -177,6 +187,17 @@
                     <li><a href="#incident-report" class="quick-action">File Incident Report</a></li>
                     <li><a href="#weather-report" class="quick-action">Submit Weather Update</a></li>
                 </ul>
+                
+                <h2>Commander Tools</h2>
+                <div class="commander-tools">
+                    <button id="verifyCommanderAccess" class="primary">Verify Commander Access</button>
+                    <div id="commanderStatus" class="status-indicator">Not Verified</div>
+                    <ul>
+                        <li><button id="configureAlerts" class="quick-action" disabled>Configure Alert Settings</button></li>
+                        <li><button id="manageThresholds" class="quick-action" disabled>Manage Resource Thresholds</button></li>
+                        <li><button id="manageRecipients" class="quick-action" disabled>Manage Alert Recipients</button></li>
+                    </ul>
+                </div>
             </aside>
 
             <section id="data-entry" class="section-content">
