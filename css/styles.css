@@ -124,6 +124,66 @@ header h1 {
   color: var(--white);
 }
 
+.commander-badge {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--warning-color);
+  color: var(--white);
+  margin-left: var(--spacing-sm);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.commander-badge.verified {
+  background-color: var(--success-color);
+}
+
+.commander-tools {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--gray-100);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--gray-300);
+}
+
+.commander-tools .status-indicator {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--gray-300);
+  color: var(--gray-500);
+  border-radius: var(--border-radius-sm);
+  text-align: center;
+  font-weight: var(--font-weight-medium);
+}
+
+.commander-tools .status-indicator.verified {
+  background-color: var(--success-color);
+  color: var(--white);
+}
+
+.commander-tools ul {
+  margin-top: var(--spacing-md);
+}
+
+.commander-tools button.quick-action {
+  width: 100%;
+  text-align: left;
+  margin-bottom: var(--spacing-xs);
+  background-color: var(--gray-200);
+  color: var(--gray-500);
+  border: none;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.commander-tools button.quick-action:not([disabled]):hover {
+  background-color: var(--primary-color);
+  color: var(--white);
+}
+
 .commander-access-modal .modal-content {
   max-width: 400px;
 }
@@ -452,6 +512,72 @@ section {
   padding: var(--spacing-md);
   background: rgba(255, 255, 255, 0.7);
   border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-md);
+}
+
+.vessel-location {
+  padding: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: var(--border-radius);
+}
+
+.vessel-location h4 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--primary-color);
+  font-weight: var(--font-weight-medium);
+}
+
+.vessel-location button {
+  margin-top: var(--spacing-sm);
+  width: 100%;
+}
+
+#weatherData {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.weather-icon {
+  width: 64px;
+  height: 64px;
+}
+
+.weather-temp {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.weather-description {
+  text-transform: capitalize;
+  font-weight: var(--font-weight-medium);
+}
+
+.weather-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.weather-detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.weather-detail-label {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+.weather-detail-value {
+  font-weight: var(--font-weight-medium);
 }
 
 /* Alerts Card */

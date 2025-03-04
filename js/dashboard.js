@@ -21,18 +21,114 @@ export class ResourceMonitor {
 
     async init() {
         try {
-            const response = await fetch('/api/resources/status', {
+            // Fetch resource data
+            const resourceResponse = await fetch('/api/resources/status', {
                 headers: { 'Authorization': `Bearer ${this.token}` }
             });
 
-            if (!response.ok) throw new Error('Failed to fetch resource data');
-            this.resources = await response.json();
+            if (!resourceResponse.ok) throw new Error('Failed to fetch resource data');
+            this.resources = await resourceResponse.json();
+            
+            // Fetch weather data
+            this.fetchWeatherData();
+            
+            // Fetch vessel location
+            this.fetchVesselLocation();
+            
+            // Setup UI components
             this.setupGauges();
             this.setupAlerts();
             this.setupWebSocket();
+            this.setupEventListeners();
         } catch (error) {
             console.error('Failed to initialize resource monitor:', error);
             showToast('Failed to load resource data', 'error');
+        }
+    }
+    
+    async fetchWeatherData() {
+        try {
+            const weatherResponse = await fetch('/api/weather', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            
+            if (!weatherResponse.ok) throw new Error('Failed to fetch weather data');
+            const weatherData = await weatherResponse.json();
+            
+            this.updateWeatherDisplay(weatherData);
+        } catch (error) {
+            console.error('Failed to fetch weather data:', error);
+            document.getElementById('weatherData').innerHTML = 'Weather data unavailable';
+        }
+    }
+    
+    updateWeatherDisplay(data) {
+        const weatherContainer = document.getElementById('weatherData');
+        if (!weatherContainer) return;
+        
+        const iconUrl = data.weather && data.weather[0] ? 
+            `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png` : '';
+        
+        weatherContainer.innerHTML = `
+            <div class="weather-main">
+                ${iconUrl ? `<img src="${iconUrl}" alt="Weather icon" class="weather-icon">` : ''}
+                <div>
+                    <div class="weather-temp">${Math.round(data.main?.temp || 0)}°C</div>
+                    <div class="weather-description">${data.weather?.[0]?.description || 'Unknown'}</div>
+                </div>
+            </div>
+            <div class="weather-details">
+                <div class="weather-detail-item">
+                    <span class="weather-detail-label">Humidity</span>
+                    <span class="weather-detail-value">${data.main?.humidity || 0}%</span>
+                </div>
+                <div class="weather-detail-item">
+                    <span class="weather-detail-label">Wind</span>
+                    <span class="weather-detail-value">${data.wind?.speed || 0} m/s</span>
+                </div>
+                <div class="weather-detail-item">
+                    <span class="weather-detail-label">Pressure</span>
+                    <span class="weather-detail-value">${data.main?.pressure || 0} hPa</span>
+                </div>
+                <div class="weather-detail-item">
+                    <span class="weather-detail-label">Visibility</span>
+                    <span class="weather-detail-value">${(data.visibility || 0) / 1000} km</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    async fetchVesselLocation() {
+        try {
+            const locationResponse = await fetch('/api/location', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            
+            if (!locationResponse.ok) throw new Error('Failed to fetch vessel location');
+            const locationData = await locationResponse.json();
+            
+            this.updateLocationDisplay(locationData);
+        } catch (error) {
+            console.error('Failed to fetch vessel location:', error);
+            const locationName = document.getElementById('locationName');
+            const locationCoords = document.getElementById('locationCoords');
+            
+            if (locationName) locationName.textContent = 'Unknown';
+            if (locationCoords) locationCoords.textContent = 'Unknown';
+        }
+    }
+    
+    updateLocationDisplay(data) {
+        const locationName = document.getElementById('locationName');
+        const locationCoords = document.getElementById('locationCoords');
+        
+        if (locationName) {
+            locationName.textContent = data.name ? `${data.name}, ${data.country}` : 'Unknown';
+        }
+        
+        if (locationCoords) {
+            locationCoords.textContent = data.lat && data.lon ? 
+                `${data.lat.toFixed(4)}, ${data.lon.toFixed(4)}` : 'Unknown';
         }
     }
 
@@ -102,6 +198,7 @@ export class ResourceMonitor {
                 const currentAmount = (fuelData.level / 100) * fuelData.capacity;
                 const consumptionRate = fuelData.consumptionRate?.value || 100; // L/h
                 const hoursRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
+                // Display fuel autonomy in hours as per requirements
                 fuelRange.textContent = `${hoursRemaining.toFixed(1)} hours`;
             }
             
@@ -118,6 +215,7 @@ export class ResourceMonitor {
                 const currentAmount = (oilData.level / 100) * oilData.capacity;
                 const consumptionRate = oilData.consumptionRate?.value || 10; // L/h
                 const hoursRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
+                // Convert to days as per requirements
                 const daysRemaining = hoursRemaining / 24;
                 engineStatus.textContent = `${daysRemaining.toFixed(1)} days`;
             }
@@ -134,6 +232,7 @@ export class ResourceMonitor {
                 const foodData = this.resources.food;
                 const currentAmount = (foodData.level / 100) * foodData.capacity;
                 const consumptionRate = foodData.consumptionRate?.value || 50; // kg/day
+                // Display food autonomy in days as per requirements
                 const daysRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
                 foodDuration.textContent = `${daysRemaining.toFixed(1)} days`;
             }
@@ -150,6 +249,7 @@ export class ResourceMonitor {
                 const waterData = this.resources.water;
                 const currentAmount = (waterData.level / 100) * waterData.capacity;
                 const consumptionRate = waterData.consumptionRate?.value || 200; // L/day
+                // Display water autonomy in days as per requirements
                 const daysRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
                 waterDuration.textContent = `${daysRemaining.toFixed(1)} days`;
             }
@@ -383,12 +483,329 @@ export class ResourceMonitor {
         this.user.thresholds = newThresholds;
         this.checkResourceThresholds();
     }
+    
+    setupEventListeners() {
+        // Update location button
+        const updateLocationBtn = document.getElementById('updateLocation');
+        if (updateLocationBtn) {
+            updateLocationBtn.addEventListener('click', () => this.showLocationUpdateModal());
+        }
+        
+        // Commander verification button
+        const verifyCommanderBtn = document.getElementById('verifyCommanderAccess');
+        if (verifyCommanderBtn) {
+            verifyCommanderBtn.addEventListener('click', () => {
+                authManager.verifyCommanderAccess(() => {
+                    this.updateCommanderUI(true);
+                });
+            });
+        }
+        
+        // Configure alerts button
+        const configureAlertsBtn = document.getElementById('configureAlerts');
+        if (configureAlertsBtn) {
+            configureAlertsBtn.addEventListener('click', () => this.showAlertConfigModal());
+        }
+        
+        // Manage thresholds button
+        const manageThresholdsBtn = document.getElementById('manageThresholds');
+        if (manageThresholdsBtn) {
+            manageThresholdsBtn.addEventListener('click', () => this.showThresholdsModal());
+        }
+        
+        // Manage recipients button
+        const manageRecipientsBtn = document.getElementById('manageRecipients');
+        if (manageRecipientsBtn) {
+            manageRecipientsBtn.addEventListener('click', () => {
+                // Show recipients modal
+                showToast('Email recipients management is coming soon', 'info');
+            });
+        }
+    }
+    
+    updateCommanderUI(isVerified) {
+        // Update commander status indicator
+        const commanderStatus = document.getElementById('commanderStatus');
+        if (commanderStatus) {
+            commanderStatus.textContent = isVerified ? 'Verified' : 'Not Verified';
+            if (isVerified) {
+                commanderStatus.classList.add('verified');
+            } else {
+                commanderStatus.classList.remove('verified');
+            }
+        }
+        
+        // Update commander badge
+        const commanderBadge = document.getElementById('commanderAccessStatus');
+        if (commanderBadge) {
+            commanderBadge.textContent = isVerified ? 'Commander Access Verified' : 'Commander Access Required';
+            if (isVerified) {
+                commanderBadge.classList.add('verified');
+            } else {
+                commanderBadge.classList.remove('verified');
+            }
+        }
+        
+        // Enable/disable commander tools
+        const commanderTools = [
+            document.getElementById('configureAlerts'),
+            document.getElementById('manageThresholds'),
+            document.getElementById('manageRecipients')
+        ];
+        
+        commanderTools.forEach(tool => {
+            if (tool) {
+                tool.disabled = !isVerified;
+            }
+        });
+    }
+    
+    showLocationUpdateModal() {
+        // Check if commander is verified
+        if (this.user.role === 'captain' && !authManager.isCommanderVerified) {
+            authManager.verifyCommanderAccess(() => {
+                this.createLocationUpdateModal();
+            });
+        } else {
+            this.createLocationUpdateModal();
+        }
+    }
+    
+    createLocationUpdateModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal location-update-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Update Vessel Location</h2>
+                <form id="locationUpdateForm">
+                    <div class="form-group">
+                        <label for="locationLat">Latitude:</label>
+                        <input type="number" id="locationLat" step="0.0001" min="-90" max="90" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="locationLon">Longitude:</label>
+                        <input type="number" id="locationLon" step="0.0001" min="-180" max="180" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="locationName">Location Name (optional):</label>
+                        <input type="text" id="locationName">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="primary">Update Location</button>
+                        <button type="button" class="secondary" id="cancelLocation">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Setup event listeners
+        const form = document.getElementById('locationUpdateForm');
+        const cancelBtn = document.getElementById('cancelLocation');
+        const closeBtn = modal.querySelector('.close-modal');
+        
+        form.addEventListener('submit', (e) => this.handleLocationUpdate(e, modal));
+        cancelBtn.addEventListener('click', () => modal.remove());
+        closeBtn.addEventListener('click', () => modal.remove());
+    }
+    
+    async handleLocationUpdate(event, modal) {
+        event.preventDefault();
+        
+        const lat = parseFloat(document.getElementById('locationLat').value);
+        const lon = parseFloat(document.getElementById('locationLon').value);
+        const name = document.getElementById('locationName').value;
+        
+        try {
+            const response = await fetch('/api/location', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ lat, lon, name })
+            });
+            
+            if (!response.ok) throw new Error('Failed to update location');
+            
+            const data = await response.json();
+            this.updateLocationDisplay(data.location);
+            
+            // Update weather if available
+            if (data.weather) {
+                this.updateWeatherDisplay(data.weather);
+            } else {
+                // Fetch new weather data
+                this.fetchWeatherData();
+            }
+            
+            showToast('Vessel location updated successfully', 'success');
+            modal.remove();
+        } catch (error) {
+            console.error('Error updating location:', error);
+            showToast('Failed to update location', 'error');
+        }
+    }
+    
+    showAlertConfigModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal alert-config-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Configure Alert Settings</h2>
+                <form id="alertConfigForm">
+                    <h3>Alert Notifications</h3>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="emailAlerts" 
+                                ${this.user.alertPreferences.email ? 'checked' : ''}>
+                            Email Notifications
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="smsAlerts" 
+                                ${this.user.alertPreferences.sms ? 'checked' : ''}>
+                            SMS Notifications
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="soundAlerts" 
+                                ${this.user.alertPreferences.sound ? 'checked' : ''}>
+                            Sound Alerts
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="primary">Save Settings</button>
+                        <button type="button" class="secondary" id="cancelAlertConfig">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Setup event listeners
+        const form = document.getElementById('alertConfigForm');
+        const cancelBtn = document.getElementById('cancelAlertConfig');
+        const closeBtn = modal.querySelector('.close-modal');
+        
+        form.addEventListener('submit', (e) => this.handleAlertConfigUpdate(e, modal));
+        cancelBtn.addEventListener('click', () => modal.remove());
+        closeBtn.addEventListener('click', () => modal.remove());
+    }
+    
+    async handleAlertConfigUpdate(event, modal) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const alertPreferences = {
+            email: form.emailAlerts.checked,
+            sms: form.smsAlerts.checked,
+            sound: form.soundAlerts.checked
+        };
+        
+        try {
+            // Update user preferences
+            this.user.alertPreferences = alertPreferences;
+            localStorage.setItem('user', JSON.stringify(this.user));
+            
+            showToast('Alert settings updated successfully', 'success');
+            modal.remove();
+        } catch (error) {
+            console.error('Error updating alert settings:', error);
+            showToast('Failed to update alert settings', 'error');
+        }
+    }
+    
+    showThresholdsModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal thresholds-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Manage Resource Thresholds</h2>
+                <form id="thresholdsForm">
+                    ${Object.entries(this.user.thresholds).map(([resource, levels]) => `
+                        <div class="threshold-group">
+                            <h4>${resource.charAt(0).toUpperCase() + resource.slice(1)}</h4>
+                            <div class="form-group">
+                                <label>Warning Level (%):
+                                    <input type="number" name="${resource}_warning" 
+                                        value="${levels.warning}" min="0" max="100">
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Critical Level (%):
+                                    <input type="number" name="${resource}_critical" 
+                                        value="${levels.critical}" min="0" max="100">
+                                </label>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <div class="modal-actions">
+                        <button type="submit" class="primary">Save Thresholds</button>
+                        <button type="button" class="secondary" id="cancelThresholds">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Setup event listeners
+        const form = document.getElementById('thresholdsForm');
+        const cancelBtn = document.getElementById('cancelThresholds');
+        const closeBtn = modal.querySelector('.close-modal');
+        
+        form.addEventListener('submit', (e) => this.handleThresholdsUpdate(e, modal));
+        cancelBtn.addEventListener('click', () => modal.remove());
+        closeBtn.addEventListener('click', () => modal.remove());
+    }
+    
+    async handleThresholdsUpdate(event, modal) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const thresholds = {};
+        
+        ['fuel', 'oil', 'food', 'water'].forEach(resource => {
+            thresholds[resource] = {
+                warning: parseInt(form[`${resource}_warning`].value),
+                critical: parseInt(form[`${resource}_critical`].value)
+            };
+        });
+        
+        try {
+            // Update user thresholds
+            this.user.thresholds = thresholds;
+            localStorage.setItem('user', JSON.stringify(this.user));
+            
+            // Update thresholds in resource monitor
+            this.updateThresholds(thresholds);
+            
+            showToast('Resource thresholds updated successfully', 'success');
+            modal.remove();
+        } catch (error) {
+            console.error('Error updating thresholds:', error);
+            showToast('Failed to update thresholds', 'error');
+        }
+    }
 }
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     if (authManager.token && authManager.user) {
         window.resourceMonitor = new ResourceMonitor();
+        
+        // Check if commander is verified
+        if (authManager.isCommanderVerified) {
+            window.resourceMonitor.updateCommanderUI(true);
+        }
     }
 });
 

@@ -13,6 +13,9 @@ const resourceRoutes = require('./routes/resources');
 const alertRoutes = require('./routes/alerts');
 const engineRoutes = require('./routes/engine');
 
+// Import middleware
+const { auth, checkRole } = require('./middleware/auth');
+
 // Load environment variables
 dotenv.config();
 
