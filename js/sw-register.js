@@ -1,7 +1,7 @@
 import { showToast } from './auth.js';
 
 // Configuration
-const SW_VERSION = 'v6';
+const SW_VERSION = 'v7';
 // Create window.ENV if it doesn't exist
 window.ENV = window.ENV || {};
 // Set VAPID_PUBLIC_KEY with a fallback
