@@ -69,7 +69,8 @@ router.post('/', auth, async (req, res) => {
 // Get active alerts
 router.get('/active', auth, async (req, res) => {
     try {
-        const alerts = await Alert.getActiveAlerts();
+        // Add a timeout to prevent long-running queries
+        const alerts = await Alert.getActiveAlerts().maxTimeMS(30000);
         res.json(alerts);
     } catch (error) {
         res.status(500).json({
@@ -81,14 +82,19 @@ router.get('/active', auth, async (req, res) => {
 // Get alerts history
 router.get('/history', auth, async (req, res) => {
     try {
-        const { resource, type, startDate, endDate, limit } = req.query;
+        const { resource, type, startDate, endDate, limit = 100 } = req.query;
+        
+        // Limit the number of results to prevent excessive data retrieval
+        const maxLimit = Math.min(parseInt(limit) || 100, 500);
+        
         const alerts = await Alert.getAlertsHistory({
             resource,
             type,
             startDate,
             endDate,
-            limit: parseInt(limit)
-        });
+            limit: maxLimit
+        }).maxTimeMS(30000); // Add a 30-second timeout
+        
         res.json(alerts);
     } catch (error) {
         res.status(500).json({
@@ -153,13 +159,21 @@ router.post('/:alertId/notify', auth, async (req, res) => {
             });
         }
 
+        // Set a timeout for notification operations
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Notification operation timed out')), 60000);
+        });
+
         const notificationPromises = [];
 
         // Send email notifications
         if (req.body.email && process.env.ALERT_EMAIL_RECIPIENTS) {
+            // Limit the number of recipients to prevent long-running operations
+            const recipients = process.env.ALERT_EMAIL_RECIPIENTS.split(',').slice(0, 20);
+            
             const emailPromise = emailTransporter.sendMail({
                 from: process.env.EMAIL_USER,
-                to: process.env.ALERT_EMAIL_RECIPIENTS.split(','),
+                to: recipients,
                 subject: `MV Sigyn Alert: ${alert.resource} ${alert.type}`,
                 html: `
                     <h2>${alert.type.toUpperCase()} Alert</h2>
@@ -171,22 +185,25 @@ router.post('/:alertId/notify', auth, async (req, res) => {
                         `<p><strong>Estimated Depletion:</strong> ${alert.metadata.estimatedDepletion.toLocaleString()}</p>` 
                         : ''}
                 `
-            }).then(() => alert.recordNotification('email', process.env.ALERT_EMAIL_RECIPIENTS.split(',')));
+            }).then(() => alert.recordNotification('email', recipients));
 
             notificationPromises.push(emailPromise);
         }
 
         // Send SMS notifications
         if (req.body.sms && process.env.ALERT_SMS_RECIPIENTS) {
+            // Limit the number of SMS recipients to prevent long-running operations
+            const recipients = process.env.ALERT_SMS_RECIPIENTS.split(',').slice(0, 10);
+            
             const smsPromise = Promise.all(
-                process.env.ALERT_SMS_RECIPIENTS.split(',').map(recipient =>
+                recipients.map(recipient =>
                     twilioClient.messages.create({
                         body: `MV Sigyn ${alert.type.toUpperCase()} Alert: ${alert.resource} at ${alert.level}%. ${alert.message}`,
                         from: process.env.TWILIO_PHONE_NUMBER,
                         to: recipient
                     })
                 )
-            ).then(() => alert.recordNotification('sms', process.env.ALERT_SMS_RECIPIENTS.split(',')));
+            ).then(() => alert.recordNotification('sms', recipients));
 
             notificationPromises.push(smsPromise);
         }
@@ -196,13 +213,18 @@ router.post('/:alertId/notify', auth, async (req, res) => {
             notificationPromises.push(alert.recordNotification('sound'));
         }
 
-        await Promise.all(notificationPromises);
+        // Use Promise.race to implement a timeout
+        await Promise.race([
+            Promise.all(notificationPromises),
+            timeoutPromise
+        ]);
 
         res.json({
             message: 'Alert notifications sent successfully',
             alert
         });
     } catch (error) {
+        console.error('Notification error:', error);
         res.status(500).json({
             error: 'Failed to send alert notifications: ' + error.message
         });
@@ -218,8 +240,11 @@ router.get('/stats', auth, async (req, res) => {
         if (startDate) query.timestamp = { $gte: new Date(startDate) };
         if (endDate) query.timestamp = { ...query.timestamp, $lte: new Date(endDate) };
 
+        // Add a time limit to the aggregation to prevent long-running queries
         const stats = await Alert.aggregate([
             { $match: query },
+            // Add a limit to prevent processing too many documents
+            { $limit: 10000 },
             {
                 $group: {
                     _id: {
@@ -247,7 +272,7 @@ router.get('/stats', auth, async (req, res) => {
                     totalCount: { $sum: '$count' }
                 }
             }
-        ]);
+        ]).option({ maxTimeMS: 60000 }); // Set a 60-second timeout
 
         res.json(stats);
     } catch (error) {

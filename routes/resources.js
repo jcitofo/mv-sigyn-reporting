@@ -136,24 +136,82 @@ router.patch('/:type/consumption-rate', auth, checkRole(['captain', 'engineer'])
 router.get('/:type/history', auth, async (req, res) => {
     try {
         const { startDate, endDate, limit = 100 } = req.query;
-        const resource = await Resource.findOne({ type: req.params.type });
-
-        if (!resource) {
-            return res.status(404).json({
-                error: 'Resource not found'
-            });
+        
+        // Limit the maximum number of records to prevent excessive data retrieval
+        const maxLimit = Math.min(parseInt(limit) || 100, 500);
+        
+        const query = { type: req.params.type };
+        const historyQuery = {};
+        
+        if (startDate || endDate) {
+            historyQuery['history.timestamp'] = {};
+            if (startDate) historyQuery['history.timestamp'].$gte = new Date(startDate);
+            if (endDate) historyQuery['history.timestamp'].$lte = new Date(endDate);
+            
+            // Use aggregation for date filtering to improve performance
+            const resource = await Resource.aggregate([
+                { $match: query },
+                { $unwind: '$history' },
+                { $match: historyQuery },
+                { $sort: { 'history.timestamp': -1 } },
+                { $limit: maxLimit },
+                {
+                    $group: {
+                        _id: '$_id',
+                        type: { $first: '$type' },
+                        history: { $push: '$history' }
+                    }
+                }
+            ]).option({ maxTimeMS: 30000 }); // Add a 30-second timeout
+            
+            if (resource.length === 0) {
+                return res.status(404).json({
+                    error: 'Resource not found or no history in date range'
+                });
+            }
+            
+            // Populate user references
+            const userIds = resource[0].history
+                .filter(h => h.updatedBy)
+                .map(h => h.updatedBy);
+                
+            if (userIds.length > 0) {
+                const User = mongoose.model('User');
+                const users = await User.find({ _id: { $in: userIds } })
+                    .select('username role')
+                    .lean();
+                
+                const userMap = users.reduce((map, user) => {
+                    map[user._id.toString()] = { username: user.username, role: user.role };
+                    return map;
+                }, {});
+                
+                resource[0].history = resource[0].history.map(h => {
+                    if (h.updatedBy && userMap[h.updatedBy.toString()]) {
+                        h.updatedBy = userMap[h.updatedBy.toString()];
+                    }
+                    return h;
+                });
+            }
+            
+            res.json(resource[0]);
+        } else {
+            // For simple queries without date filtering, use the original approach
+            // but with a limit to prevent excessive data retrieval
+            const history = await Resource.findOne({ type: req.params.type })
+                .select('history')
+                .slice('history', -maxLimit)
+                .populate('history.updatedBy', 'username role')
+                .maxTimeMS(30000); // Add a 30-second timeout
+            
+            if (!history) {
+                return res.status(404).json({
+                    error: 'Resource not found'
+                });
+            }
+            
+            res.json(history);
         }
-
-        const query = {};
-        if (startDate) query['history.timestamp'] = { $gte: new Date(startDate) };
-        if (endDate) query['history.timestamp'] = { ...query['history.timestamp'], $lte: new Date(endDate) };
-
-        const history = await Resource.findOne({ type: req.params.type })
-            .select('history')
-            .slice('history', -limit)
-            .populate('history.updatedBy', 'username role');
-
-        res.json(history);
     } catch (error) {
         res.status(500).json({
             error: 'Failed to fetch resource history: ' + error.message
@@ -165,10 +223,15 @@ router.get('/:type/history', auth, async (req, res) => {
 router.get('/:type/deliveries', auth, async (req, res) => {
     try {
         const { limit = 10 } = req.query;
+        
+        // Limit the maximum number of records to prevent excessive data retrieval
+        const maxLimit = Math.min(parseInt(limit) || 10, 100);
+        
         const resource = await Resource.findOne({ type: req.params.type })
             .select('deliveries')
-            .slice('deliveries', -limit)
-            .populate('deliveries.recordedBy', 'username role');
+            .slice('deliveries', -maxLimit)
+            .populate('deliveries.recordedBy', 'username role')
+            .maxTimeMS(30000); // Add a 30-second timeout
 
         if (!resource) {
             return res.status(404).json({

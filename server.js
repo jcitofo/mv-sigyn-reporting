@@ -200,6 +200,12 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Resource update tracking
+let lastUpdateTime = Date.now();
+let updateOperationsCount = 0;
+const MAX_UPDATE_OPERATIONS = 20; // Maximum number of operations per minute
+let updateRateLimitReset = Date.now() + 60000; // Reset counter every minute
+
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
@@ -208,29 +214,70 @@ server.listen(PORT, async () => {
         await initializeResources();
         console.log('Resources initialized');
         
-        // Simulate resource updates
+        // Simulate resource updates with rate limiting and error handling
         setInterval(async () => {
-            const resources = await Resource.find();
-            const updates = {};
-            
-            for (const resource of resources) {
-                // Simulate consumption
-                const rate = resource.consumptionRate.value;
-                const timeUnit = resource.consumptionRate.unit.includes('day') ? 24 * 60 * 60 : 60 * 60;
-                const consumption = (rate / timeUnit) * 5; // 5-second interval
+            try {
+                const now = Date.now();
                 
-                resource.currentLevel = Math.max(0, resource.currentLevel - consumption);
-                await resource.save();
+                // Check if we've exceeded the rate limit
+                if (now > updateRateLimitReset) {
+                    updateOperationsCount = 0;
+                    updateRateLimitReset = now + 60000;
+                }
                 
-                updates[resource.type] = {
-                    level: resource.currentLevel,
-                    capacity: resource.capacity,
-                    unit: resource.unit,
-                    consumptionRate: resource.consumptionRate
-                };
+                if (updateOperationsCount >= MAX_UPDATE_OPERATIONS) {
+                    console.log('Update rate limit reached, skipping resource update');
+                    return;
+                }
+                
+                // Calculate actual time elapsed since last update
+                const elapsedSeconds = (now - lastUpdateTime) / 1000;
+                lastUpdateTime = now;
+                
+                const resources = await Resource.find();
+                const updates = {};
+                
+                // Use Promise.all to process all resources in parallel with a timeout
+                const updatePromises = resources.map(async (resource) => {
+                    try {
+                        // Simulate consumption based on actual elapsed time
+                        const rate = resource.consumptionRate.value;
+                        const timeUnit = resource.consumptionRate.unit.includes('day') ? 24 * 60 * 60 : 60 * 60;
+                        const consumption = (rate / timeUnit) * elapsedSeconds;
+                        
+                        resource.currentLevel = Math.max(0, resource.currentLevel - consumption);
+                        await resource.save();
+                        
+                        updates[resource.type] = {
+                            level: resource.currentLevel,
+                            capacity: resource.capacity,
+                            unit: resource.unit,
+                            consumptionRate: resource.consumptionRate
+                        };
+                        
+                        updateOperationsCount++;
+                    } catch (error) {
+                        console.error(`Error updating resource ${resource.type}:`, error);
+                    }
+                });
+                
+                // Add a timeout to prevent long-running operations
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Resource update timed out')), 10000);
+                });
+                
+                await Promise.race([
+                    Promise.all(updatePromises),
+                    timeoutPromise
+                ]);
+                
+                // Only broadcast if we have updates
+                if (Object.keys(updates).length > 0) {
+                    broadcastResourceUpdate(updates);
+                }
+            } catch (error) {
+                console.error('Error in resource update simulation:', error);
             }
-            
-            broadcastResourceUpdate(updates);
         }, 5000);
     } catch (error) {
         console.error('Error initializing resources:', error);
