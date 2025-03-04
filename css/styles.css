@@ -111,6 +111,23 @@ header h1 {
   max-width: calc(100% - var(--spacing-md) * 2);
 }
 
+.commander-status {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-300);
+  color: var(--gray-500);
+}
+
+.commander-status.verified {
+  background-color: var(--success-color);
+  color: var(--white);
+}
+
+.commander-access-modal .modal-content {
+  max-width: 400px;
+}
+
 @media (max-width: 768px) {
   .auth-container {
     position: relative;
@@ -489,6 +506,81 @@ section {
   padding: 0.25em 0.5em;
   border-radius: var(--border-radius-sm);
   font-weight: var(--font-weight-medium);
+}
+
+/* Alert Styles */
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.alert-item:hover {
+  box-shadow: var(--shadow);
+}
+
+.alert-item.warning {
+  border-left: 4px solid var(--warning-level);
+}
+
+.alert-item.critical {
+  border-left: 4px solid var(--critical-level);
+}
+
+.alert-icon {
+  font-size: 1.5rem;
+  color: var(--warning-level);
+}
+
+.alert-item.critical .alert-icon {
+  color: var(--critical-level);
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-title {
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-xs);
+}
+
+.alert-message {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.alert-timestamp {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+.alert-acknowledge {
+  background-color: var(--gray-300);
+  color: var(--text-color);
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: var(--transition);
+}
+
+.alert-acknowledge:hover {
+  background-color: var(--gray-400);
+}
+
+.no-alerts {
+  text-align: center;
+  padding: var(--spacing-md);
+  color: var(--gray-500);
+  font-style: italic;
 }
 
 /* Engine Controls */

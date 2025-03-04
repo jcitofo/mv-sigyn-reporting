@@ -16,11 +16,13 @@ export class AuthManager {
                 oil: { warning: 35, critical: 20 },
                 food: { warning: 35, critical: 20 },
                 water: { warning: 35, critical: 20 }
-            }
+            },
+            accessCode: 'MV-SIGYN-2025' // Commander access code
         };
         
         this.token = 'demo_token';
         this.user = demoUser;
+        this.isCommanderVerified = false;
         localStorage.setItem('token', this.token);
         localStorage.setItem('user', JSON.stringify(this.user));
         
@@ -42,8 +44,77 @@ export class AuthManager {
         // Setup preferences button
         const prefsBtn = document.getElementById('preferencesBtn');
         if (prefsBtn) {
-            prefsBtn.addEventListener('click', () => this.showPreferencesModal());
+            prefsBtn.addEventListener('click', () => {
+                if (this.user.role === 'captain' && !this.isCommanderVerified) {
+                    this.verifyCommanderAccess(() => this.showPreferencesModal());
+                } else {
+                    this.showPreferencesModal();
+                }
+            });
         }
+        
+        // Setup event listeners for resource modification buttons
+        document.addEventListener('click', (event) => {
+            // Check for resource update buttons
+            if (event.target.matches('#updateRates, #recordDelivery')) {
+                if (this.user.role === 'captain' && !this.isCommanderVerified) {
+                    event.preventDefault();
+                    this.verifyCommanderAccess(() => {
+                        // Simulate click on the original button after verification
+                        event.target.click();
+                    });
+                }
+            }
+        });
+    }
+    
+    verifyCommanderAccess(callback) {
+        const modal = document.createElement('div');
+        modal.className = 'modal commander-access-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2>Commander Access Verification</h2>
+                <p>Please enter your commander access code to proceed with this operation.</p>
+                <form id="commanderAccessForm">
+                    <div class="form-group">
+                        <label for="accessCode">Access Code:</label>
+                        <input type="password" id="accessCode" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="primary">Verify</button>
+                        <button type="button" class="secondary" id="cancelAccess">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Setup event listeners
+        const form = document.getElementById('commanderAccessForm');
+        const cancelBtn = document.getElementById('cancelAccess');
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const accessCode = document.getElementById('accessCode').value;
+            
+            if (accessCode === this.user.accessCode) {
+                this.isCommanderVerified = true;
+                showToast('Access verified', 'success');
+                modal.remove();
+                
+                // Set a timeout to reset verification after 30 minutes
+                setTimeout(() => {
+                    this.isCommanderVerified = false;
+                }, 30 * 60 * 1000);
+                
+                if (callback) callback();
+            } else {
+                showToast('Invalid access code', 'error');
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => modal.remove());
     }
 
     getLoggedInUI() {
@@ -52,6 +123,10 @@ export class AuthManager {
                 <span class="username">${this.user.username}</span>
                 <span class="role">${this.user.role}</span>
                 <button id="preferencesBtn" class="preferences-btn">Preferences</button>
+                ${this.user.role === 'captain' ? 
+                    `<span class="commander-status ${this.isCommanderVerified ? 'verified' : ''}">
+                        ${this.isCommanderVerified ? '✓ Verified' : ''}
+                    </span>` : ''}
             </div>
         `;
     }
@@ -104,6 +179,16 @@ export class AuthManager {
                             </div>
                         </div>
                     `).join('')}
+                    
+                    ${this.user.role === 'captain' ? `
+                    <h3>Email Notification Recipients</h3>
+                    <div class="form-group">
+                        <label for="emailRecipients">Email Recipients (comma-separated):</label>
+                        <input type="text" id="emailRecipients" name="emailRecipients" 
+                            value="${localStorage.getItem('alertEmailRecipients') || ''}" 
+                            placeholder="email1@example.com, email2@example.com">
+                    </div>
+                    ` : ''}
 
                     <div class="modal-actions">
                         <button type="submit" class="primary">Save Changes</button>
@@ -141,6 +226,27 @@ export class AuthManager {
                     critical: parseInt(form[`${resource}_critical`].value)
                 };
             });
+
+            // Save email recipients if captain
+            if (this.user.role === 'captain' && form.emailRecipients) {
+                localStorage.setItem('alertEmailRecipients', form.emailRecipients.value);
+                
+                // Update server-side email recipients
+                try {
+                    await fetch('/api/alerts/config', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            emailRecipients: form.emailRecipients.value.split(',').map(email => email.trim())
+                        })
+                    });
+                } catch (error) {
+                    console.error('Failed to update email recipients:', error);
+                }
+            }
 
             // Update local user data
             this.user = {

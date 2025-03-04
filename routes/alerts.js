@@ -58,6 +58,39 @@ router.post('/', auth, async (req, res) => {
             metadata
         });
         
+        // Automatically send notifications for critical alerts
+        if (type === 'critical') {
+            try {
+                // Get email recipients from environment variable
+                const recipients = process.env.ALERT_EMAIL_RECIPIENTS ? 
+                    process.env.ALERT_EMAIL_RECIPIENTS.split(',') : [];
+                
+                if (recipients.length > 0) {
+                    await emailTransporter.sendMail({
+                        from: process.env.EMAIL_USER,
+                        to: recipients,
+                        subject: `MV Sigyn CRITICAL Alert: ${resource} at ${level}%`,
+                        html: `
+                            <h2>CRITICAL Alert</h2>
+                            <p><strong>Resource:</strong> ${resource}</p>
+                            <p><strong>Level:</strong> ${level}%</p>
+                            <p><strong>Message:</strong> ${message}</p>
+                            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+                            ${metadata?.estimatedDepletion ? 
+                                `<p><strong>Estimated Depletion:</strong> ${new Date(metadata.estimatedDepletion).toLocaleString()}</p>` 
+                                : ''}
+                            <p><strong>Consumption Rate:</strong> ${metadata?.consumptionRate?.value || 'N/A'} ${metadata?.consumptionRate?.unit || ''}</p>
+                        `
+                    });
+                    
+                    await alert.recordNotification('email', recipients);
+                    console.log(`Critical alert email sent to ${recipients.join(', ')}`);
+                }
+            } catch (emailError) {
+                console.error('Failed to send alert email:', emailError);
+            }
+        }
+        
         res.status(201).json(alert);
     } catch (error) {
         res.status(500).json({
@@ -167,27 +200,37 @@ router.post('/:alertId/notify', auth, async (req, res) => {
         const notificationPromises = [];
 
         // Send email notifications
-        if (req.body.email && process.env.ALERT_EMAIL_RECIPIENTS) {
-            // Limit the number of recipients to prevent long-running operations
-            const recipients = process.env.ALERT_EMAIL_RECIPIENTS.split(',').slice(0, 20);
+        if (req.body.email) {
+            // Get recipients from environment variable or use default
+            let recipients = [];
             
-            const emailPromise = emailTransporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: recipients,
-                subject: `MV Sigyn Alert: ${alert.resource} ${alert.type}`,
-                html: `
-                    <h2>${alert.type.toUpperCase()} Alert</h2>
-                    <p><strong>Resource:</strong> ${alert.resource}</p>
-                    <p><strong>Level:</strong> ${alert.level}%</p>
-                    <p><strong>Message:</strong> ${alert.message}</p>
-                    <p><strong>Time:</strong> ${alert.timestamp.toLocaleString()}</p>
-                    ${alert.metadata.estimatedDepletion ? 
-                        `<p><strong>Estimated Depletion:</strong> ${alert.metadata.estimatedDepletion.toLocaleString()}</p>` 
-                        : ''}
-                `
-            }).then(() => alert.recordNotification('email', recipients));
+            if (process.env.ALERT_EMAIL_RECIPIENTS) {
+                recipients = process.env.ALERT_EMAIL_RECIPIENTS.split(',');
+            }
+            
+            // Limit the number of recipients to prevent long-running operations
+            recipients = recipients.slice(0, 20);
+            
+            if (recipients.length > 0) {
+                const emailPromise = emailTransporter.sendMail({
+                    from: process.env.EMAIL_USER,
+                    to: recipients,
+                    subject: `MV Sigyn ${alert.type.toUpperCase()} Alert: ${alert.resource} at ${alert.level}%`,
+                    html: `
+                        <h2>${alert.type.toUpperCase()} Alert</h2>
+                        <p><strong>Resource:</strong> ${alert.resource}</p>
+                        <p><strong>Level:</strong> ${alert.level}%</p>
+                        <p><strong>Message:</strong> ${alert.message}</p>
+                        <p><strong>Time:</strong> ${alert.timestamp.toLocaleString()}</p>
+                        ${alert.metadata?.estimatedDepletion ? 
+                            `<p><strong>Estimated Depletion:</strong> ${new Date(alert.metadata.estimatedDepletion).toLocaleString()}</p>` 
+                            : ''}
+                        <p><strong>Consumption Rate:</strong> ${alert.metadata?.consumptionRate?.value || 'N/A'} ${alert.metadata?.consumptionRate?.unit || ''}</p>
+                    `
+                }).then(() => alert.recordNotification('email', recipients));
 
-            notificationPromises.push(emailPromise);
+                notificationPromises.push(emailPromise);
+            }
         }
 
         // Send SMS notifications
@@ -195,17 +238,19 @@ router.post('/:alertId/notify', auth, async (req, res) => {
             // Limit the number of SMS recipients to prevent long-running operations
             const recipients = process.env.ALERT_SMS_RECIPIENTS.split(',').slice(0, 10);
             
-            const smsPromise = Promise.all(
-                recipients.map(recipient =>
-                    twilioClient.messages.create({
-                        body: `MV Sigyn ${alert.type.toUpperCase()} Alert: ${alert.resource} at ${alert.level}%. ${alert.message}`,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: recipient
-                    })
-                )
-            ).then(() => alert.recordNotification('sms', recipients));
+            if (recipients.length > 0) {
+                const smsPromise = Promise.all(
+                    recipients.map(recipient =>
+                        twilioClient.messages.create({
+                            body: `MV Sigyn ${alert.type.toUpperCase()} Alert: ${alert.resource} at ${alert.level}%. ${alert.message}`,
+                            from: process.env.TWILIO_PHONE_NUMBER,
+                            to: recipient
+                        })
+                    )
+                ).then(() => alert.recordNotification('sms', recipients));
 
-            notificationPromises.push(smsPromise);
+                notificationPromises.push(smsPromise);
+            }
         }
 
         // Record sound notification if requested
@@ -227,6 +272,52 @@ router.post('/:alertId/notify', auth, async (req, res) => {
         console.error('Notification error:', error);
         res.status(500).json({
             error: 'Failed to send alert notifications: ' + error.message
+        });
+    }
+});
+
+// Configure alert settings
+router.post('/config', auth, checkRole(['captain']), async (req, res) => {
+    try {
+        const { emailRecipients, smsRecipients } = req.body;
+        
+        // Update email recipients
+        if (emailRecipients && Array.isArray(emailRecipients)) {
+            // Validate email format
+            const validEmails = emailRecipients.filter(email => 
+                /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)
+            );
+            
+            if (validEmails.length > 0) {
+                process.env.ALERT_EMAIL_RECIPIENTS = validEmails.join(',');
+            }
+        }
+        
+        // Update SMS recipients
+        if (smsRecipients && Array.isArray(smsRecipients)) {
+            // Validate phone number format (basic validation)
+            const validPhones = smsRecipients.filter(phone => 
+                /^[0-9+\-\s()]+$/.test(phone)
+            );
+            
+            if (validPhones.length > 0) {
+                process.env.ALERT_SMS_RECIPIENTS = validPhones.join(',');
+            }
+        }
+        
+        res.json({
+            message: 'Alert configuration updated successfully',
+            config: {
+                emailRecipients: process.env.ALERT_EMAIL_RECIPIENTS ? 
+                    process.env.ALERT_EMAIL_RECIPIENTS.split(',') : [],
+                smsRecipients: process.env.ALERT_SMS_RECIPIENTS ? 
+                    process.env.ALERT_SMS_RECIPIENTS.split(',') : []
+            }
+        });
+    } catch (error) {
+        console.error('Error updating alert configuration:', error);
+        res.status(500).json({
+            error: 'Failed to update alert configuration: ' + error.message
         });
     }
 });

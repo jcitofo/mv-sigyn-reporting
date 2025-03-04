@@ -141,42 +141,97 @@ app.use('/api/resources', resourceRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/engine', engineRoutes);
 
+// Default vessel location (Antananarivo, Madagascar)
+const defaultVesselLocation = {
+    lat: -18.8792,
+    lon: 47.5079,
+    name: 'Antananarivo',
+    country: 'MG'
+};
+
+// Current vessel location (can be updated via API)
+let currentVesselLocation = { ...defaultVesselLocation };
+
 // Weather data endpoint with OpenWeatherMap integration
 app.get('/api/weather', async (req, res) => {
     try {
-        const { lat, lon } = req.query;
+        // Use provided coordinates or default to current vessel location
+        const lat = req.query.lat || currentVesselLocation.lat;
+        const lon = req.query.lon || currentVesselLocation.lon;
         
-        // For demo purposes, return mock weather data instead of making an API call
-        const mockWeatherData = {
-            coord: { lon: parseFloat(lon), lat: parseFloat(lat) },
-            weather: [{ id: 800, main: 'Clear', description: 'clear sky', icon: '01d' }],
-            base: 'stations',
-            main: {
-                temp: 28.5,
-                feels_like: 30.2,
-                temp_min: 26.8,
-                temp_max: 30.1,
-                pressure: 1012,
-                humidity: 65
-            },
-            visibility: 10000,
-            wind: { speed: 5.2, deg: 120 },
-            clouds: { all: 5 },
-            dt: Date.now() / 1000,
-            sys: {
-                type: 2,
-                id: 2000,
-                country: 'MG',
-                sunrise: Date.now() / 1000 - 21600,
-                sunset: Date.now() / 1000 + 21600
-            },
-            timezone: 10800,
-            id: 1070940,
-            name: 'Antananarivo',
-            cod: 200
-        };
+        let weatherData;
         
-        res.json(mockWeatherData);
+        // Try to fetch real weather data if API key is available
+        if (process.env.OPENWEATHER_API_KEY) {
+            try {
+                const response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
+                );
+                
+                if (response.ok) {
+                    weatherData = await response.json();
+                    
+                    // Update vessel location name if available
+                    if (weatherData.name) {
+                        currentVesselLocation.name = weatherData.name;
+                    }
+                    if (weatherData.sys && weatherData.sys.country) {
+                        currentVesselLocation.country = weatherData.sys.country;
+                    }
+                    
+                    // Cache weather data for alerts
+                    latestWeatherData = {
+                        description: weatherData.weather[0]?.description || 'Unknown',
+                        temperature: weatherData.main?.temp || 0,
+                        windSpeed: weatherData.wind?.speed || 0
+                    };
+                }
+            } catch (apiError) {
+                console.error('OpenWeatherMap API error:', apiError);
+                // Fall back to mock data if API call fails
+            }
+        }
+        
+        // If we couldn't get real data, use mock data
+        if (!weatherData) {
+            weatherData = {
+                coord: { lon: parseFloat(lon), lat: parseFloat(lat) },
+                weather: [{ id: 800, main: 'Clear', description: 'clear sky', icon: '01d' }],
+                base: 'stations',
+                main: {
+                    temp: 28.5,
+                    feels_like: 30.2,
+                    temp_min: 26.8,
+                    temp_max: 30.1,
+                    pressure: 1012,
+                    humidity: 65
+                },
+                visibility: 10000,
+                wind: { speed: 5.2, deg: 120 },
+                clouds: { all: 5 },
+                dt: Date.now() / 1000,
+                sys: {
+                    type: 2,
+                    id: 2000,
+                    country: currentVesselLocation.country,
+                    sunrise: Date.now() / 1000 - 21600,
+                    sunset: Date.now() / 1000 + 21600
+                },
+                timezone: 10800,
+                id: 1070940,
+                name: currentVesselLocation.name,
+                cod: 200
+            };
+            
+            // Cache weather data for alerts
+            latestWeatherData = {
+                description: weatherData.weather[0]?.description || 'Unknown',
+                temperature: weatherData.main?.temp || 0,
+                windSpeed: weatherData.wind?.speed || 0
+            };
+        }
+        
+        res.json(weatherData);
     } catch (error) {
         console.error('Error fetching weather data:', error);
         res.status(500).json({ 
@@ -184,6 +239,78 @@ app.get('/api/weather', async (req, res) => {
             message: error.message 
         });
     }
+});
+
+// Update vessel location
+app.post('/api/location', auth, checkRole(['captain']), async (req, res) => {
+    try {
+        const { lat, lon, name, country } = req.body;
+        
+        // Validate coordinates
+        if (typeof lat !== 'number' || typeof lon !== 'number' ||
+            lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            return res.status(400).json({
+                error: 'Invalid coordinates'
+            });
+        }
+        
+        // Update vessel location
+        currentVesselLocation = {
+            lat,
+            lon,
+            name: name || currentVesselLocation.name,
+            country: country || currentVesselLocation.country
+        };
+        
+        // Fetch weather data for new location
+        let weatherData;
+        
+        if (process.env.OPENWEATHER_API_KEY) {
+            try {
+                const response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
+                );
+                
+                if (response.ok) {
+                    weatherData = await response.json();
+                    
+                    // Update location name if not provided
+                    if (!name && weatherData.name) {
+                        currentVesselLocation.name = weatherData.name;
+                    }
+                    if (!country && weatherData.sys && weatherData.sys.country) {
+                        currentVesselLocation.country = weatherData.sys.country;
+                    }
+                    
+                    // Cache weather data for alerts
+                    latestWeatherData = {
+                        description: weatherData.weather[0]?.description || 'Unknown',
+                        temperature: weatherData.main?.temp || 0,
+                        windSpeed: weatherData.wind?.speed || 0
+                    };
+                }
+            } catch (apiError) {
+                console.error('OpenWeatherMap API error:', apiError);
+            }
+        }
+        
+        res.json({
+            message: 'Vessel location updated successfully',
+            location: currentVesselLocation,
+            weather: weatherData
+        });
+    } catch (error) {
+        console.error('Error updating vessel location:', error);
+        res.status(500).json({
+            error: 'Failed to update vessel location',
+            message: error.message
+        });
+    }
+});
+
+// Get current vessel location
+app.get('/api/location', auth, async (req, res) => {
+    res.json(currentVesselLocation);
 });
 
 // Serve index.html for all other routes (SPA support)
@@ -200,11 +327,35 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Track latest weather data for alerts
+let latestWeatherData = {
+    description: 'clear sky',
+    temperature: 28.5,
+    windSpeed: 5.2
+};
+
 // Resource update tracking
 let lastUpdateTime = Date.now();
 let updateOperationsCount = 0;
 const MAX_UPDATE_OPERATIONS = 20; // Maximum number of operations per minute
 let updateRateLimitReset = Date.now() + 60000; // Reset counter every minute
+
+// Request length limits
+const MAX_REQUEST_SIZE = 1024 * 1024; // 1MB
+
+// Middleware to limit request size
+app.use((req, res, next) => {
+    const contentLength = parseInt(req.headers['content-length'] || '0');
+    
+    if (contentLength > MAX_REQUEST_SIZE) {
+        return res.status(413).json({
+            error: 'Request entity too large',
+            message: `Request size exceeds the maximum allowed size of ${MAX_REQUEST_SIZE / 1024}KB`
+        });
+    }
+    
+    next();
+});
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -214,7 +365,41 @@ server.listen(PORT, async () => {
         await initializeResources();
         console.log('Resources initialized');
         
-        // Simulate resource updates with rate limiting and error handling
+        // Initialize weather data
+        if (process.env.OPENWEATHER_API_KEY) {
+            try {
+                const response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${currentVesselLocation.lat}&lon=${currentVesselLocation.lon}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
+                );
+                
+                if (response.ok) {
+                    const weatherData = await response.json();
+                    
+                    // Update location name
+                    if (weatherData.name) {
+                        currentVesselLocation.name = weatherData.name;
+                    }
+                    if (weatherData.sys && weatherData.sys.country) {
+                        currentVesselLocation.country = weatherData.sys.country;
+                    }
+                    
+                    // Cache weather data for alerts
+                    latestWeatherData = {
+                        description: weatherData.weather[0]?.description || 'Unknown',
+                        temperature: weatherData.main?.temp || 0,
+                        windSpeed: weatherData.wind?.speed || 0
+                    };
+                    
+                    console.log('Weather data initialized');
+                }
+            } catch (apiError) {
+                console.error('OpenWeatherMap API error:', apiError);
+            }
+        }
+        
+        // Set up periodic tasks
+        
+        // 1. Simulate resource updates with rate limiting and error handling
         setInterval(async () => {
             try {
                 const now = Date.now();
@@ -279,6 +464,42 @@ server.listen(PORT, async () => {
                 console.error('Error in resource update simulation:', error);
             }
         }, 5000);
+        
+        // 2. Update weather data every 30 minutes
+        setInterval(async () => {
+            if (process.env.OPENWEATHER_API_KEY) {
+                try {
+                    const response = await fetch(
+                        `https://api.openweathermap.org/data/2.5/weather?lat=${currentVesselLocation.lat}&lon=${currentVesselLocation.lon}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
+                    );
+                    
+                    if (response.ok) {
+                        const weatherData = await response.json();
+                        
+                        // Cache weather data for alerts
+                        latestWeatherData = {
+                            description: weatherData.weather[0]?.description || 'Unknown',
+                            temperature: weatherData.main?.temp || 0,
+                            windSpeed: weatherData.wind?.speed || 0
+                        };
+                        
+                        // Broadcast weather update to connected clients
+                        wss.clients.forEach((client) => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    type: 'weather_update',
+                                    weather: weatherData
+                                }));
+                            }
+                        });
+                        
+                        console.log('Weather data updated');
+                    }
+                } catch (apiError) {
+                    console.error('OpenWeatherMap API error:', apiError);
+                }
+            }
+        }, 30 * 60 * 1000); // 30 minutes
     } catch (error) {
         console.error('Error initializing resources:', error);
     }
