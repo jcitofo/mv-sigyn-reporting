@@ -36,7 +36,7 @@ router.get('/status', auth, async (req, res) => {
             engineHours: engineState.engineHours,
             fuelTank: engineState.fuelTank,
             oilTank: engineState.oilTank,
-            deliveries: engineState.deliveries
+            deliveries: engineState.deliveries.slice(-20) // Limit to last 20 deliveries
         });
     } catch (error) {
         res.status(500).json({
@@ -126,6 +126,10 @@ router.post('/delivery', auth, validateResourceAccess, async (req, res) => {
             timestamp: new Date()
         };
         
+        // Limit the number of deliveries stored in memory
+        if (engineState.deliveries.length >= 100) {
+            engineState.deliveries.shift(); // Remove oldest delivery
+        }
         engineState.deliveries.push(delivery);
         
         // Update resource level
@@ -160,6 +164,13 @@ router.post('/delivery', auth, validateResourceAccess, async (req, res) => {
 
 // Resource consumption simulation
 let consumptionInterval;
+let lastConsumptionTime = Date.now();
+const CONSUMPTION_INTERVAL = 5000; // 5 seconds
+const MAX_CONSUMPTION_OPERATIONS = 12; // Maximum number of operations per minute
+
+// Track consumption operations to prevent excessive database operations
+let consumptionOperationsCount = 0;
+let consumptionRateLimitReset = Date.now() + 60000; // Reset counter every minute
 
 function startResourceConsumption() {
     // Clear any existing interval
@@ -167,9 +178,28 @@ function startResourceConsumption() {
         clearInterval(consumptionInterval);
     }
     
+    lastConsumptionTime = Date.now();
+    
     // Start consuming resources every 5 seconds
     consumptionInterval = setInterval(async () => {
         try {
+            const now = Date.now();
+            
+            // Check if we've exceeded the rate limit
+            if (now > consumptionRateLimitReset) {
+                consumptionOperationsCount = 0;
+                consumptionRateLimitReset = now + 60000;
+            }
+            
+            if (consumptionOperationsCount >= MAX_CONSUMPTION_OPERATIONS) {
+                console.log('Consumption rate limit reached, skipping update');
+                return;
+            }
+            
+            // Calculate actual time elapsed since last consumption
+            const elapsedSeconds = (now - lastConsumptionTime) / 1000;
+            lastConsumptionTime = now;
+            
             // Get current consumption rates
             const fuelResource = await Resource.findOne({ type: 'fuel' });
             const oilResource = await Resource.findOne({ type: 'oil' });
@@ -179,17 +209,26 @@ function startResourceConsumption() {
             const fuelRate = fuelResource.consumptionRate.value;
             const oilRate = oilResource.consumptionRate.value;
             
-            // Calculate consumption for 5 seconds
-            const fuelConsumption = (fuelRate / 3600) * 5; // L/h to L/5s
-            const oilConsumption = (oilRate / 3600) * 5;   // L/h to L/5s
+            // Calculate consumption for actual elapsed time
+            const fuelConsumption = (fuelRate / 3600) * elapsedSeconds; // L/h to L/elapsed seconds
+            const oilConsumption = (oilRate / 3600) * elapsedSeconds;   // L/h to L/elapsed seconds
             
             // Update engine state
             engineState.fuelTank.current = Math.max(0, engineState.fuelTank.current - fuelConsumption);
             engineState.oilTank.current = Math.max(0, engineState.oilTank.current - oilConsumption);
             
-            // Update resource levels
-            await fuelResource.updateLevel(fuelConsumption, 'consumption', 'system');
-            await oilResource.updateLevel(oilConsumption, 'consumption', 'system');
+            // Update resource levels with a timeout to prevent long-running operations
+            const updatePromise = Promise.all([
+                fuelResource.updateLevel(fuelConsumption, 'consumption', 'system'),
+                oilResource.updateLevel(oilConsumption, 'consumption', 'system')
+            ]);
+            
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Resource update timed out')), 10000);
+            });
+            
+            await Promise.race([updatePromise, timeoutPromise]);
+            consumptionOperationsCount += 2; // Count both resource updates
             
             // Stop engine if resources are depleted
             if (engineState.fuelTank.current <= 0 || engineState.oilTank.current <= 0) {
@@ -198,8 +237,18 @@ function startResourceConsumption() {
             }
         } catch (error) {
             console.error('Error in resource consumption:', error);
+            
+            // If we encounter an error, slow down the consumption rate temporarily
+            if (consumptionInterval) {
+                clearInterval(consumptionInterval);
+                setTimeout(() => {
+                    if (engineState.running) {
+                        startResourceConsumption();
+                    }
+                }, 30000); // Wait 30 seconds before trying again
+            }
         }
-    }, 5000);
+    }, CONSUMPTION_INTERVAL);
 }
 
 function stopResourceConsumption() {
