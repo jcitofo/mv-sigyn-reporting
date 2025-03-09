@@ -65,15 +65,27 @@ async function initializeResources() {
     };
 
     for (const type of resources) {
-        const exists = await Resource.findOne({ type });
-        if (!exists) {
-            const resource = new Resource({
-                type,
-                currentLevel: 80, // Start at 80%
-                ...initialData[type]
-            });
-            await resource.save();
-            console.log(`Initialized ${type} resource`);
+        try {
+            // Check if resource exists
+            const exists = await Resource.findOne({ type });
+            
+            if (!exists) {
+                // Create new resource
+                const resource = new Resource({
+                    type,
+                    currentLevel: 80, // Start at 80%
+                    ...initialData[type]
+                });
+                await resource.save();
+                console.log(`Initialized ${type} resource`);
+            } else {
+                // Reset resource level to 80% for testing
+                exists.currentLevel = 80;
+                await exists.save();
+                console.log(`Reset ${type} resource to 80%`);
+            }
+        } catch (error) {
+            console.error(`Error initializing ${type} resource:`, error);
         }
     }
 }
