@@ -183,12 +183,29 @@ router.post('/:alertId/resolve', auth, checkRole(['captain', 'engineer']), async
 // Send alert notifications
 router.post('/:alertId/notify', auth, async (req, res) => {
     try {
-        const alert = await Alert.findById(req.params.alertId)
-            .populate('acknowledged.by', 'username role');
+        // Check if alertId is valid
+        if (!req.params.alertId || req.params.alertId === 'undefined') {
+            return res.status(400).json({
+                error: 'Invalid alert ID'
+            });
+        }
         
-        if (!alert) {
-            return res.status(404).json({
-                error: 'Alert not found'
+        // Try to find the alert
+        let alert;
+        try {
+            alert = await Alert.findById(req.params.alertId)
+                .populate('acknowledged.by', 'username role');
+            
+            if (!alert) {
+                return res.status(404).json({
+                    error: 'Alert not found'
+                });
+            }
+        } catch (findError) {
+            console.error('Error finding alert:', findError);
+            return res.status(400).json({
+                error: 'Invalid alert ID format',
+                details: findError.message
             });
         }
 

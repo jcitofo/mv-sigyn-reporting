@@ -69,34 +69,46 @@ export class AuthManager {
     }
     
     verifyCommanderAccess(callback) {
+        console.log('verifyCommanderAccess called');
+        
+        // Create a unique ID for this modal instance
+        const modalId = `commander-access-modal-${Date.now()}`;
+        const formId = `commander-access-form-${Date.now()}`;
+        const accessCodeId = `access-code-${Date.now()}`;
+        const cancelBtnId = `cancel-access-${Date.now()}`;
+        
         const modal = document.createElement('div');
         modal.className = 'modal commander-access-modal';
+        modal.id = modalId;
+        modal.style.display = 'block';
         modal.innerHTML = `
             <div class="modal-content">
                 <h2>Commander Access Verification</h2>
                 <p>Please enter your commander access code to proceed with this operation.</p>
-                <form id="commanderAccessForm">
+                <form id="${formId}">
                     <div class="form-group">
-                        <label for="accessCode">Access Code:</label>
-                        <input type="password" id="accessCode" required>
+                        <label for="${accessCodeId}">Access Code:</label>
+                        <input type="password" id="${accessCodeId}" required>
                     </div>
                     <div class="modal-actions">
                         <button type="submit" class="primary">Verify</button>
-                        <button type="button" class="secondary" id="cancelAccess">Cancel</button>
+                        <button type="button" class="secondary" id="${cancelBtnId}">Cancel</button>
                     </div>
                 </form>
             </div>
         `;
 
         document.body.appendChild(modal);
+        console.log('Commander access modal added to DOM');
 
         // Setup event listeners
-        const form = document.getElementById('commanderAccessForm');
-        const cancelBtn = document.getElementById('cancelAccess');
+        const form = document.getElementById(formId);
+        const cancelBtn = document.getElementById(cancelBtnId);
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const accessCode = document.getElementById('accessCode').value;
+            console.log('Commander access form submitted');
+            const accessCode = document.getElementById(accessCodeId).value;
             
             if (accessCode === this.user.accessCode) {
                 this.isCommanderVerified = true;
@@ -114,7 +126,10 @@ export class AuthManager {
             }
         });
 
-        cancelBtn.addEventListener('click', () => modal.remove());
+        cancelBtn.addEventListener('click', () => {
+            console.log('Commander access modal cancelled');
+            modal.remove();
+        });
     }
 
     getLoggedInUI() {

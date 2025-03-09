@@ -104,30 +104,44 @@ alertSchema.methods.resolveAlert = async function() {
 alertSchema.methods.recordNotification = async function(type, recipients = []) {
     const now = new Date();
     
+    // Find the latest version of this alert to avoid parallel save errors
+    const freshAlert = await mongoose.model('Alert').findById(this._id);
+    if (!freshAlert) {
+        console.error('Alert not found when trying to record notification');
+        return;
+    }
+    
     switch(type) {
         case 'email':
-            this.notifications.email = {
+            freshAlert.notifications.email = {
                 sent: true,
                 recipients,
                 sentAt: now
             };
             break;
         case 'sms':
-            this.notifications.sms = {
+            freshAlert.notifications.sms = {
                 sent: true,
                 recipients,
                 sentAt: now
             };
             break;
         case 'sound':
-            this.notifications.sound = {
+            freshAlert.notifications.sound = {
                 played: true,
                 playedAt: now
             };
             break;
     }
     
-    await this.save();
+    try {
+        await freshAlert.save();
+        
+        // Update this instance to match the saved one
+        this.notifications = freshAlert.notifications;
+    } catch (error) {
+        console.error('Error saving notification status:', error);
+    }
 };
 
 // Static method to get active alerts

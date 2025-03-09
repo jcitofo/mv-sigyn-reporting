@@ -143,7 +143,14 @@ export class ResourceMonitor {
         Object.keys(gaugeConfig).forEach(resource => {
             const canvas = document.getElementById(`${resource}Gauge`);
             if (!canvas) return;
+            // Default to 80% if resource data is not available
             const level = this.resources[resource]?.level || 80;
+
+            // Make sure Chart.js is available
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js is not loaded');
+                return;
+            }
 
             this.gauges[resource] = new Chart(canvas.getContext('2d'), {
                 type: 'doughnut',
@@ -157,10 +164,15 @@ export class ResourceMonitor {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutoutPercentage: 70,
+                    cutout: '70%', // Updated from cutoutPercentage for Chart.js v3+
                     rotation: Math.PI,
                     circumference: Math.PI,
-                    title: { display: true, text: `${gaugeConfig[resource].label}: ${level}%` }
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${gaugeConfig[resource].label}: ${level}%`
+                        }
+                    }
                 }
             });
         });
@@ -174,11 +186,23 @@ export class ResourceMonitor {
             Object.keys(this.gauges).forEach(resource => {
                 const gauge = this.gauges[resource];
                 const resourceData = this.resources[resource];
-                if (!resourceData) return;
+                if (!gauge || !resourceData) return;
+                
                 const level = resourceData.level;
                 gauge.data.datasets[0].data = [level, 100 - level];
-                gauge.options.title.text = `${level.toFixed(1)}%`;
+                
+                // Update title text with the new level
+                if (gauge.options.plugins && gauge.options.plugins.title) {
+                    gauge.options.plugins.title.text = `${level.toFixed(1)}%`;
+                }
+                
                 gauge.update();
+                
+                // Also update the level display in the HTML
+                const levelElement = document.getElementById(`${resource}Level`);
+                if (levelElement) {
+                    levelElement.textContent = level.toFixed(1);
+                }
             });
             
             // Update autonomy displays
@@ -309,6 +333,13 @@ export class ResourceMonitor {
 
             if (!response.ok) throw new Error('Failed to create alert');
             const alert = await response.json();
+            
+            // Ensure we have a valid alert object with an ID
+            if (!alert || !alert._id) {
+                console.error('Invalid alert object returned from API:', alert);
+                throw new Error('Invalid alert data received');
+            }
+            
             this.activeAlerts.add(`${resource}-${severity}`);
             
             // Add alert to the alerts list
@@ -329,8 +360,8 @@ export class ResourceMonitor {
                 this.playAlertSound(severity);
             }
             
-            // Send notifications
-            this.sendAlertNotifications(alert.id, severity);
+            // Send notifications with the alert ID
+            this.sendAlertNotifications(alert._id, severity);
         } catch (error) {
             console.error('Error triggering alert:', error);
             showToast('Failed to create alert', 'error');
@@ -363,6 +394,12 @@ export class ResourceMonitor {
     
     async sendAlertNotifications(alertId, severity) {
         try {
+            // Skip notification if alertId is undefined
+            if (!alertId) {
+                console.log('Skipping notifications - no alert ID provided');
+                return;
+            }
+            
             const notificationTypes = {
                 email: this.user.alertPreferences.email,
                 sms: this.user.alertPreferences.sms,
@@ -494,8 +531,11 @@ export class ResourceMonitor {
         // Commander verification button
         const verifyCommanderBtn = document.getElementById('verifyCommanderAccess');
         if (verifyCommanderBtn) {
-            verifyCommanderBtn.addEventListener('click', () => {
+            verifyCommanderBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Verify Commander Access button clicked');
                 authManager.verifyCommanderAccess(() => {
+                    console.log('Commander access verified callback');
                     this.updateCommanderUI(true);
                 });
             });

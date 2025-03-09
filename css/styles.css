@@ -377,6 +377,16 @@ main {
   main {
     flex-direction: row;
   }
+  
+  section {
+    flex: 3;
+    order: 1;
+  }
+  
+  aside {
+    flex: 1;
+    order: 2;
+  }
 }
 
 /* Sidebar Styles */
@@ -1268,6 +1278,11 @@ tbody tr:hover {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   animation: fadeIn 0.3s ease;
+}
+
+/* Ensure modal is displayed when style.display is set to 'block' */
+.modal[style*="display: block"] {
+  display: block !important;
 }
 
 .modal-content {
