@@ -942,7 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hash = window.location.hash;
     if (hash) {
         const sectionId = hash.replace('#', '').split('-')[0];
-        if (['dashboard', 'data-entry', 'data-consultation', 'report-visualization'].includes(sectionId)) {
+        if (['dashboard', 'resource-management', 'data-entry', 'data-consultation', 'report-visualization'].includes(sectionId)) {
             showSection(sectionId);
         } else {
             showSection('dashboard');

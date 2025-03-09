@@ -19,6 +19,7 @@
     
     <!-- Styles -->
     <link rel="stylesheet" href="css/styles.css?v=3">
+    <link rel="stylesheet" href="css/resource-management.css?v=1">
     
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.bundle.min.js"></script>
@@ -44,6 +45,7 @@
     <script type="module" src="js/auth.js?v=3"></script>
     <script type="module" src="js/app.js?v=5"></script>
     <script type="module" src="js/dashboard.js?v=4"></script>
+    <script type="module" src="js/resource-manager.js?v=1"></script>
     <script type="module" src="js/sw-register.js?v=4"></script>
 </head>
 <body>
@@ -54,6 +56,7 @@
     <nav>
         <div class="container">
             <a href="#dashboard" aria-current="page">Dashboard</a>
+            <a href="#resource-management">Resource Management</a>
             <a href="#data-entry">Data Entry</a>
             <a href="#data-consultation">Data Consultation</a>
             <a href="#report-visualization">Report Visualization</a>
@@ -219,6 +222,158 @@
                 </div>
             </aside>
 
+            <section id="resource-management" class="section-content">
+                <h2>Resource Management</h2>
+                <div class="resource-management-container">
+                    <div class="resource-management-header">
+                        <h3>Resource Quantities</h3>
+                        <p>Update and track real-time quantities of fuel, oil, food, and fresh water on board.</p>
+                    </div>
+                    
+                    <div class="resource-management-grid">
+                        <!-- Resource Update Form -->
+                        <div class="resource-card resource-update-form">
+                            <h3>Update Resource Quantities</h3>
+                            <form id="resourceUpdateForm">
+                                <div class="form-group">
+                                    <label for="resourceType">Resource Type:</label>
+                                    <select id="resourceType" required>
+                                        <option value="fuel">Fuel</option>
+                                        <option value="oil">Engine Oil</option>
+                                        <option value="food">Food</option>
+                                        <option value="water">Fresh Water</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="updateType">Update Type:</label>
+                                    <select id="updateType" required>
+                                        <option value="manual_update">Manual Update</option>
+                                        <option value="consumption">Consumption</option>
+                                        <option value="refill">Refill</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="resourceAmount">Amount:</label>
+                                    <input type="number" id="resourceAmount" min="0" step="0.1" required>
+                                    <span id="resourceUnit">L</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="resourceNotes">Notes (Optional):</label>
+                                    <textarea id="resourceNotes" rows="2" placeholder="Enter any additional information..."></textarea>
+                                </div>
+                                <button type="submit" class="primary" id="updateResourceBtn">Update Resource</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Current Resource Levels -->
+                        <div class="resource-card resource-levels">
+                            <h3>Current Resource Levels</h3>
+                            <div class="resource-levels-grid">
+                                <div class="resource-level-item" id="fuelLevelCard">
+                                    <h4>Fuel</h4>
+                                    <div class="resource-level-bar">
+                                        <div class="level-bar-fill" style="width: 80%;"></div>
+                                    </div>
+                                    <div class="resource-level-details">
+                                        <p>Level: <span class="level-value">80</span>%</p>
+                                        <p>Quantity: <span class="quantity-value">8000</span> L</p>
+                                        <p>Last Updated: <span class="last-updated">--</span></p>
+                                    </div>
+                                </div>
+                                <div class="resource-level-item" id="oilLevelCard">
+                                    <h4>Engine Oil</h4>
+                                    <div class="resource-level-bar">
+                                        <div class="level-bar-fill" style="width: 65%;"></div>
+                                    </div>
+                                    <div class="resource-level-details">
+                                        <p>Level: <span class="level-value">65</span>%</p>
+                                        <p>Quantity: <span class="quantity-value">650</span> L</p>
+                                        <p>Last Updated: <span class="last-updated">--</span></p>
+                                    </div>
+                                </div>
+                                <div class="resource-level-item" id="foodLevelCard">
+                                    <h4>Food</h4>
+                                    <div class="resource-level-bar">
+                                        <div class="level-bar-fill" style="width: 75%;"></div>
+                                    </div>
+                                    <div class="resource-level-details">
+                                        <p>Level: <span class="level-value">75</span>%</p>
+                                        <p>Quantity: <span class="quantity-value">750</span> kg</p>
+                                        <p>Last Updated: <span class="last-updated">--</span></p>
+                                    </div>
+                                </div>
+                                <div class="resource-level-item" id="waterLevelCard">
+                                    <h4>Fresh Water</h4>
+                                    <div class="resource-level-bar">
+                                        <div class="level-bar-fill" style="width: 90%;"></div>
+                                    </div>
+                                    <div class="resource-level-details">
+                                        <p>Level: <span class="level-value">90</span>%</p>
+                                        <p>Quantity: <span class="quantity-value">9000</span> L</p>
+                                        <p>Last Updated: <span class="last-updated">--</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Resource History -->
+                    <div class="resource-card resource-history">
+                        <div class="resource-history-header">
+                            <h3>Resource Update History</h3>
+                            <div class="resource-history-filters">
+                                <div class="form-group">
+                                    <label for="historyResourceType">Resource:</label>
+                                    <select id="historyResourceType">
+                                        <option value="all">All Resources</option>
+                                        <option value="fuel">Fuel</option>
+                                        <option value="oil">Engine Oil</option>
+                                        <option value="food">Food</option>
+                                        <option value="water">Fresh Water</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="historyDateRange">Date Range:</label>
+                                    <select id="historyDateRange">
+                                        <option value="day">Last 24 Hours</option>
+                                        <option value="week" selected>Last 7 Days</option>
+                                        <option value="month">Last 30 Days</option>
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+                                </div>
+                                <button id="exportHistory" class="secondary">Export History</button>
+                            </div>
+                        </div>
+                        <div class="resource-history-table-container">
+                            <table class="resource-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date/Time</th>
+                                        <th>Resource</th>
+                                        <th>Action</th>
+                                        <th>Previous Level</th>
+                                        <th>New Level</th>
+                                        <th>Amount</th>
+                                        <th>Updated By</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resourceHistoryTableBody">
+                                    <!-- History entries will be populated here by JavaScript -->
+                                    <tr>
+                                        <td colspan="7" class="empty-table-message">Loading resource history...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="resource-history-pagination">
+                            <button id="prevHistoryPage" class="pagination-btn" disabled>&laquo; Previous</button>
+                            <span id="historyPageInfo">Page 1 of 1</span>
+                            <button id="nextHistoryPage" class="pagination-btn" disabled>Next &raquo;</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
             <section id="data-entry" class="section-content">
                 <h2>Data Entry Form</h2>
                 <form id="dataEntryForm" novalidate>

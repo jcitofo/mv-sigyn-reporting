@@ -1,0 +1,232 @@
+/* Resource Management Styles */
+.resource-management-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.resource-management-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.resource-management-header h3 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
+}
+
+.resource-management-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .resource-management-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Resource Update Form */
+.resource-update-form {
+  background-color: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.resource-update-form h3 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: var(--spacing-sm);
+}
+
+#resourceUnit {
+  margin-left: var(--spacing-sm);
+  color: var(--gray-500);
+}
+
+/* Resource Levels */
+.resource-levels {
+  background-color: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.resource-levels h3 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: var(--spacing-sm);
+}
+
+.resource-levels-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .resource-levels-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.resource-level-item {
+  background-color: var(--gray-100);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.resource-level-item h4 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.resource-level-bar {
+  height: 20px;
+  background-color: var(--gray-300);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-sm);
+  overflow: hidden;
+}
+
+.level-bar-fill {
+  height: 100%;
+  background-color: var(--secondary-color);
+  border-radius: var(--border-radius-sm);
+  transition: width 0.5s ease;
+}
+
+#fuelLevelCard .level-bar-fill {
+  background-color: var(--status-at-sea);
+}
+
+#oilLevelCard .level-bar-fill {
+  background-color: var(--status-maintenance);
+}
+
+#foodLevelCard .level-bar-fill {
+  background-color: var(--status-docked);
+}
+
+#waterLevelCard .level-bar-fill {
+  background-color: var(--info-color);
+}
+
+.resource-level-details {
+  font-size: var(--font-size-sm);
+}
+
+.resource-level-details p {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xs);
+}
+
+.resource-level-details .level-value {
+  font-weight: var(--font-weight-bold);
+}
+
+.resource-level-details .last-updated {
+  color: var(--gray-500);
+  font-style: italic;
+}
+
+/* Resource History */
+.resource-history {
+  background-color: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.resource-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.resource-history-header h3 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: var(--spacing-sm);
+}
+
+.resource-history-filters {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.resource-history-filters .form-group {
+  margin-bottom: 0;
+}
+
+.resource-history-table-container {
+  overflow-x: auto;
+  margin-bottom: var(--spacing-md);
+}
+
+.resource-history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.resource-history-table th,
+.resource-history-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.resource-history-table th {
+  background-color: var(--primary-color);
+  color: var(--white);
+  font-weight: var(--font-weight-medium);
+}
+
+.resource-history-table tbody tr:hover {
+  background-color: var(--gray-100);
+}
+
+.empty-table-message {
+  text-align: center;
+  padding: var(--spacing-md);
+  color: var(--gray-500);
+  font-style: italic;
+}
+
+.resource-history-pagination {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--gray-200);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pagination-btn:hover:not([disabled]) {
+  background-color: var(--secondary-color);
+  color: var(--white);
+}
+
+.pagination-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
