@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Resource = require('../models/Resource');
 const Alert = require('../models/Alert');
 const { auth, validateResourceAccess, checkRole } = require('../middleware/auth');
@@ -135,84 +136,87 @@ router.patch('/:type/consumption-rate', auth, checkRole(['captain', 'engineer'])
 // Get resource history
 router.get('/:type/history', auth, async (req, res) => {
     try {
-        const { startDate, endDate, limit = 100 } = req.query;
+        const { startDate, endDate, limit = 100, page = 1 } = req.query;
         
         // Limit the maximum number of records to prevent excessive data retrieval
         const maxLimit = Math.min(parseInt(limit) || 100, 500);
+        const currentPage = parseInt(page) || 1;
+        const skip = (currentPage - 1) * maxLimit;
         
         const query = { type: req.params.type };
-        const historyQuery = {};
+        
+        // Simplified approach using a single query pattern for all cases
+        const resource = await Resource.findOne(query)
+            .select('type history')
+            .lean();
+            
+        if (!resource) {
+            return res.status(404).json({
+                error: 'Resource not found'
+            });
+        }
+        
+        // Filter history entries by date if needed
+        let filteredHistory = resource.history || [];
         
         if (startDate || endDate) {
-            historyQuery['history.timestamp'] = {};
-            if (startDate) historyQuery['history.timestamp'].$gte = new Date(startDate);
-            if (endDate) historyQuery['history.timestamp'].$lte = new Date(endDate);
-            
-            // Use aggregation for date filtering to improve performance
-            const resource = await Resource.aggregate([
-                { $match: query },
-                { $unwind: '$history' },
-                { $match: historyQuery },
-                { $sort: { 'history.timestamp': -1 } },
-                { $limit: maxLimit },
-                {
-                    $group: {
-                        _id: '$_id',
-                        type: { $first: '$type' },
-                        history: { $push: '$history' }
-                    }
+            filteredHistory = filteredHistory.filter(entry => {
+                const entryDate = new Date(entry.timestamp);
+                let matchesFilter = true;
+                
+                if (startDate) {
+                    matchesFilter = matchesFilter && entryDate >= new Date(startDate);
                 }
-            ]).option({ maxTimeMS: 30000 }); // Add a 30-second timeout
-            
-            if (resource.length === 0) {
-                return res.status(404).json({
-                    error: 'Resource not found or no history in date range'
-                });
-            }
-            
-            // Populate user references
-            const userIds = resource[0].history
-                .filter(h => h.updatedBy)
-                .map(h => h.updatedBy);
                 
-            if (userIds.length > 0) {
-                const User = mongoose.model('User');
-                const users = await User.find({ _id: { $in: userIds } })
-                    .select('username role')
-                    .lean();
+                if (endDate) {
+                    matchesFilter = matchesFilter && entryDate <= new Date(endDate);
+                }
                 
-                const userMap = users.reduce((map, user) => {
-                    map[user._id.toString()] = { username: user.username, role: user.role };
-                    return map;
-                }, {});
-                
-                resource[0].history = resource[0].history.map(h => {
-                    if (h.updatedBy && userMap[h.updatedBy.toString()]) {
-                        h.updatedBy = userMap[h.updatedBy.toString()];
-                    }
-                    return h;
-                });
-            }
-            
-            res.json(resource[0]);
-        } else {
-            // For simple queries without date filtering, use the original approach
-            // but with a limit to prevent excessive data retrieval
-            const history = await Resource.findOne({ type: req.params.type })
-                .select('history')
-                .slice('history', -maxLimit)
-                .populate('history.updatedBy', 'username role')
-                .maxTimeMS(30000); // Add a 30-second timeout
-            
-            if (!history) {
-                return res.status(404).json({
-                    error: 'Resource not found'
-                });
-            }
-            
-            res.json(history);
+                return matchesFilter;
+            });
         }
+        
+        // Sort by timestamp (newest first)
+        filteredHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Get total count for pagination
+        const totalCount = filteredHistory.length;
+        
+        // Apply pagination
+        const paginatedHistory = filteredHistory.slice(skip, skip + maxLimit);
+        
+        // Populate user references
+        const userIds = paginatedHistory
+            .filter(h => h.updatedBy)
+            .map(h => h.updatedBy.toString());
+            
+        if (userIds.length > 0) {
+            const User = mongoose.model('User');
+            const users = await User.find({ _id: { $in: userIds } })
+                .select('username role')
+                .lean();
+            
+            const userMap = users.reduce((map, user) => {
+                map[user._id.toString()] = { username: user.username, role: user.role };
+                return map;
+            }, {});
+            
+            paginatedHistory.forEach(h => {
+                if (h.updatedBy && userMap[h.updatedBy.toString()]) {
+                    h.updatedBy = userMap[h.updatedBy.toString()];
+                }
+            });
+        }
+        
+        res.json({
+            type: resource.type,
+            history: paginatedHistory,
+            totalCount,
+            page: currentPage,
+            totalPages: Math.ceil(totalCount / maxLimit)
+        });
     } catch (error) {
+        console.error('Resource history error:', error);
         res.status(500).json({
             error: 'Failed to fetch resource history: ' + error.message
         });

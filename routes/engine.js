@@ -219,8 +219,8 @@ function startResourceConsumption() {
             
             // Update resource levels with a timeout to prevent long-running operations
             const updatePromise = Promise.all([
-                fuelResource.updateLevel(fuelConsumption, 'consumption', 'system'),
-                oilResource.updateLevel(oilConsumption, 'consumption', 'system')
+                fuelResource.updateLevel(fuelConsumption, 'consumption', 'demo_captain'),
+                oilResource.updateLevel(oilConsumption, 'consumption', 'demo_captain')
             ]);
             
             const timeoutPromise = new Promise((_, reject) => {

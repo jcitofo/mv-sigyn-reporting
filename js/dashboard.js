@@ -530,6 +530,8 @@ export class ResourceMonitor {
         
         // Commander verification button
         const verifyCommanderBtn = document.getElementById('verifyCommanderAccess');
+        const commanderAccessBtn = document.getElementById('commander-access');
+        
         if (verifyCommanderBtn) {
             verifyCommanderBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -538,6 +540,54 @@ export class ResourceMonitor {
                     console.log('Commander access verified callback');
                     this.updateCommanderUI(true);
                 });
+            });
+        }
+
+        if (commanderAccessBtn) {
+            this.isVerificationInProgress = false;
+            
+            commanderAccessBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                
+                if (this.isVerificationInProgress) return;
+                this.isVerificationInProgress = true;
+                
+                // Add loading state
+                commanderAccessBtn.innerHTML = `
+                    <span class="loading-spinner"></span>
+                    Verifying...
+                `;
+                commanderAccessBtn.disabled = true;
+                
+                try {
+                    // Check verification status
+                    const isVerified = await authManager.checkCommanderVerification();
+                    
+                    if (!isVerified) {
+                        // Show verification modal if not verified
+                        authManager.verifyCommanderAccess(() => {
+                            // After successful verification, show resource management section
+                            this.showResourceManagementSection();
+                        });
+                        
+                        // Reset button state
+                        this.isVerificationInProgress = false;
+                        commanderAccessBtn.disabled = false;
+                        commanderAccessBtn.innerHTML = 'Commander Access';
+                        return;
+                    }
+
+                    // If already verified, show resource management section
+                    this.showResourceManagementSection();
+                } catch (error) {
+                    console.error('Commander access error:', error);
+                    showToast('Failed to verify commander access', 'error');
+                } finally {
+                    // Reset button state
+                    this.isVerificationInProgress = false;
+                    commanderAccessBtn.disabled = false;
+                    commanderAccessBtn.innerHTML = 'Commander Access';
+                }
             });
         }
         
@@ -563,6 +613,25 @@ export class ResourceMonitor {
         }
     }
     
+    // Helper method to show resource management section
+    showResourceManagementSection() {
+        // Get sections
+        const dashboardSection = document.getElementById('dashboard');
+        const resourceManagementSection = document.getElementById('resource-management');
+        
+        // Show sections with animation
+        if (resourceManagementSection) {
+            resourceManagementSection.style.display = 'block';
+            setTimeout(() => {
+                resourceManagementSection.classList.add('active');
+                resourceManagementSection.scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 300);
+        }
+    }
+    
     updateCommanderUI(isVerified) {
         // Update commander status indicator
         const commanderStatus = document.getElementById('commanderStatus');
@@ -573,6 +642,12 @@ export class ResourceMonitor {
             } else {
                 commanderStatus.classList.remove('verified');
             }
+        }
+        
+        // Enable/disable commander access button
+        const commanderAccessBtn = document.getElementById('commander-access');
+        if (commanderAccessBtn) {
+            commanderAccessBtn.disabled = !isVerified;
         }
         
         // Update commander badge
@@ -600,6 +675,98 @@ export class ResourceMonitor {
         });
     }
     
+    showCommanderVerificationModal(onSuccess) {
+        const modal = document.createElement('div');
+        modal.className = 'modal commander-verification-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Commander Access Verification</h2>
+                <form id="commanderVerificationForm">
+                    <div class="form-group">
+                        <label for="verificationCode">Verification Code:</label>
+                        <input type="text" id="verificationCode" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="primary">Verify</button>
+                        <button type="button" class="secondary" id="cancelVerification">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Setup event listeners
+        const form = document.getElementById('commanderVerificationForm');
+        const cancelBtn = document.getElementById('cancelVerification');
+        const closeBtn = modal.querySelector('.close-modal');
+        
+        form.addEventListener('submit', (e) => this.handleCommanderVerification(e, modal, onSuccess));
+        cancelBtn.addEventListener('click', () => modal.remove());
+        closeBtn.addEventListener('click', () => modal.remove());
+    }
+
+    async handleCommanderVerification(event, modal, onSuccess) {
+        event.preventDefault();
+        
+        const code = document.getElementById('verificationCode').value;
+        
+        try {
+            // Show loading state
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Verifying...';
+            
+            // Call verification API
+            const response = await fetch('/api/verify-commander', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ code })
+            });
+            
+            if (!response.ok) throw new Error('Verification failed');
+            
+            const data = await response.json();
+            if (data.success) {
+                authManager.isCommanderVerified = true;
+                this.updateCommanderUI(true);
+                modal.remove();
+                onSuccess();
+            } else {
+                throw new Error(data.message || 'Verification failed');
+            }
+        } catch (error) {
+            console.error('Verification error:', error);
+            showToast(error.message || 'Verification failed', 'error');
+            
+            // Reset submit button
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Verify';
+        }
+    }
+
+    transitionToResourceManagement() {
+        // Remove loading spinner
+        const commanderAccessBtn = document.getElementById('commander-access');
+        if (commanderAccessBtn) {
+            commanderAccessBtn.disabled = false;
+            const spinner = commanderAccessBtn.querySelector('.loading-spinner');
+            if (spinner) spinner.remove();
+        }
+        
+        // Smooth transition to Resource Management
+        const resourceManagementSection = document.getElementById('resource-management');
+        if (resourceManagementSection) {
+            resourceManagementSection.scrollIntoView({ behavior: 'smooth' });
+            resourceManagementSection.classList.add('active');
+        }
+    }
+
     showLocationUpdateModal() {
         // Check if commander is verified
         if (this.user.role === 'captain' && !authManager.isCommanderVerified) {

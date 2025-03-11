@@ -154,13 +154,22 @@ export class ResourceManager {
                 const data = await response.json();
                 
                 this.renderHistoryTable(data.history || []);
-                this.totalHistoryPages = Math.ceil((data.totalCount || 0) / this.historyPageSize);
+                this.totalHistoryPages = data.totalPages || 1;
             } else {
                 // Fetch history for all resource types
                 const historyPromises = ['fuel', 'oil', 'food', 'water'].map(type => 
                     fetch(`/api/resources/${type}/history?${params.toString()}`, {
                         headers: { 'Authorization': `Bearer ${this.token}` }
-                    }).then(res => res.json())
+                    }).then(res => {
+                        if (!res.ok) {
+                            console.warn(`Failed to fetch history for ${type}`);
+                            return { history: [], totalCount: 0, totalPages: 0 };
+                        }
+                        return res.json();
+                    }).catch(err => {
+                        console.error(`Error fetching ${type} history:`, err);
+                        return { history: [], totalCount: 0, totalPages: 0 };
+                    })
                 );
                 
                 const results = await Promise.all(historyPromises);
@@ -168,11 +177,20 @@ export class ResourceManager {
                 // Combine and sort history entries
                 let combinedHistory = [];
                 let totalCount = 0;
+                let maxTotalPages = 0;
                 
-                results.forEach(result => {
+                results.forEach((result, index) => {
                     if (result.history && Array.isArray(result.history)) {
-                        combinedHistory = [...combinedHistory, ...result.history];
+                        // Add resource type to each history entry
+                        const resourceType = ['fuel', 'oil', 'food', 'water'][index];
+                        const historyWithResource = result.history.map(entry => ({
+                            ...entry,
+                            resource: resourceType
+                        }));
+                        
+                        combinedHistory = [...combinedHistory, ...historyWithResource];
                         totalCount += (result.totalCount || 0);
+                        maxTotalPages = Math.max(maxTotalPages, result.totalPages || 0);
                     }
                 });
                 
@@ -183,7 +201,7 @@ export class ResourceManager {
                 combinedHistory = combinedHistory.slice(0, this.historyPageSize);
                 
                 this.renderHistoryTable(combinedHistory);
-                this.totalHistoryPages = Math.ceil(totalCount / this.historyPageSize);
+                this.totalHistoryPages = maxTotalPages;
             }
             
             // Update pagination info
@@ -229,17 +247,33 @@ export class ResourceManager {
                 }
             }
             
-            // Calculate previous level
-            const previousLevel = (entry.level - entry.amount).toFixed(1);
+            // Calculate previous level based on action type and amount
+            let previousLevel;
+            if (action === 'Consumption') {
+                // For consumption, previous level is higher
+                previousLevel = parseFloat(entry.level) + parseFloat(entry.amount);
+            } else if (action === 'Refill') {
+                // For refill, previous level is lower
+                previousLevel = parseFloat(entry.level) - parseFloat(entry.amount);
+            } else if (action === 'Manual Update') {
+                // For manual updates, we don't have a reliable way to calculate previous level
+                // So we'll just show "Updated" instead of a value
+                previousLevel = "Updated";
+            } else {
+                previousLevel = entry.level;
+            }
+            
+            // Format the previous level as a percentage if it's a number
+            const formattedPreviousLevel = isNaN(previousLevel) ? previousLevel : previousLevel.toFixed(1) + '%';
             
             return `
                 <tr>
                     <td>${timestamp}</td>
                     <td>${entry.resource || this.selectedResourceType}</td>
                     <td>${action}</td>
-                    <td>${previousLevel}%</td>
-                    <td>${entry.level.toFixed(1)}%</td>
-                    <td>${entry.amount.toFixed(1)}</td>
+                    <td>${formattedPreviousLevel}</td>
+                    <td>${parseFloat(entry.level).toFixed(1)}%</td>
+                    <td>${parseFloat(entry.amount).toFixed(1)}</td>
                     <td>${updatedBy}</td>
                 </tr>
             `;

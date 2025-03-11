@@ -5,6 +5,25 @@
   gap: var(--spacing-lg);
 }
 
+/* Resource Thresholds Module */
+.threshold-group {
+  margin-left: var(--spacing-lg);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-100);
+  margin-bottom: var(--spacing-md);
+}
+
+.thresholds-modal .modal-content {
+  max-width: 500px;
+}
+
+.thresholds-modal h2 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
 .resource-management-header {
   margin-bottom: var(--spacing-md);
 }
@@ -29,9 +48,11 @@
 /* Resource Update Form */
 .resource-update-form {
   background-color: var(--white);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
+  max-width: 450px;
+  margin: 0 auto;
 }
 
 .resource-update-form h3 {
@@ -49,9 +70,11 @@
 /* Resource Levels */
 .resource-levels {
   background-color: var(--white);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
+  max-width: 450px;
+  margin: 0 auto;
 }
 
 .resource-levels h3 {
@@ -139,7 +162,7 @@
 /* Resource History */
 .resource-history {
   background-color: var(--white);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
 }
