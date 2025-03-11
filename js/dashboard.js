@@ -552,13 +552,6 @@ export class ResourceMonitor {
                 if (this.isVerificationInProgress) return;
                 this.isVerificationInProgress = true;
                 
-                // Add loading state
-                commanderAccessBtn.innerHTML = `
-                    <span class="loading-spinner"></span>
-                    Verifying...
-                `;
-                commanderAccessBtn.disabled = true;
-                
                 try {
                     // Check verification status
                     const isVerified = await authManager.checkCommanderVerification();
@@ -568,22 +561,25 @@ export class ResourceMonitor {
                         authManager.verifyCommanderAccess(() => {
                             // After successful verification, show resource management section
                             this.showResourceManagementSection();
+                            
+                            // Reset button state
+                            this.isVerificationInProgress = false;
+                            commanderAccessBtn.disabled = false;
+                            commanderAccessBtn.innerHTML = 'Commander Access';
                         });
-                        
-                        // Reset button state
-                        this.isVerificationInProgress = false;
-                        commanderAccessBtn.disabled = false;
-                        commanderAccessBtn.innerHTML = 'Commander Access';
                         return;
                     }
 
                     // If already verified, show resource management section
                     this.showResourceManagementSection();
+                    
+                    // Reset button state
+                    this.isVerificationInProgress = false;
                 } catch (error) {
                     console.error('Commander access error:', error);
                     showToast('Failed to verify commander access', 'error');
-                } finally {
-                    // Reset button state
+                    
+                    // Reset button state in case of error
                     this.isVerificationInProgress = false;
                     commanderAccessBtn.disabled = false;
                     commanderAccessBtn.innerHTML = 'Commander Access';

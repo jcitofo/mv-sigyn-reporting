@@ -76,87 +76,64 @@ export class AuthManager {
     verifyCommanderAccess(callback) {
         console.log('verifyCommanderAccess called');
         
-        // Check if verification form already exists
-        if (document.getElementById('commander-verification-form')) {
-            console.log('Commander verification form already exists');
-            return;
-        }
+        // Create a unique ID for this modal instance
+        const modalId = `commander-access-modal-${Date.now()}`;
+        const formId = `commander-access-form-${Date.now()}`;
+        const accessCodeId = `access-code-${Date.now()}`;
+        const cancelBtnId = `cancel-access-${Date.now()}`;
         
-        // Get the commander tools section
-        const commanderTools = document.querySelector('.commander-tools');
-        if (!commanderTools) {
-            console.error('Commander tools section not found');
-            return;
-        }
-        
-        // Create verification form
-        const verificationForm = document.createElement('div');
-        verificationForm.className = 'commander-verification-form';
-        verificationForm.id = 'commander-verification-form';
-        verificationForm.innerHTML = `
-            <h3>Commander Verification</h3>
-            <form id="access-code-form">
-                <div class="form-group">
-                    <label for="access-code">Access Code:</label>
-                    <input type="password" id="access-code" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="primary">Verify</button>
-                </div>
-            </form>
+        const modal = document.createElement('div');
+        modal.className = 'modal commander-access-modal';
+        modal.id = modalId;
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2>Commander Access Verification</h2>
+                <p>Please enter your commander access code to proceed with this operation.</p>
+                <form id="${formId}">
+                    <div class="form-group">
+                        <label for="${accessCodeId}">Access Code:</label>
+                        <input type="password" id="${accessCodeId}" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="primary">Verify</button>
+                        <button type="button" class="secondary" id="${cancelBtnId}">Cancel</button>
+                    </div>
+                </form>
+            </div>
         `;
-        
-        // Insert form after the status indicator
-        const statusIndicator = commanderTools.querySelector('.status-indicator');
-        if (statusIndicator) {
-            statusIndicator.insertAdjacentElement('afterend', verificationForm);
-        } else {
-            commanderTools.appendChild(verificationForm);
-        }
-        
-        // Focus on the input field
-        setTimeout(() => {
-            const accessCodeInput = document.getElementById('access-code');
-            if (accessCodeInput) accessCodeInput.focus();
-        }, 100);
-        
-        // Setup event listener
-        const form = document.getElementById('access-code-form');
+
+        document.body.appendChild(modal);
+        console.log('Commander access modal added to DOM');
+
+        // Setup event listeners
+        const form = document.getElementById(formId);
+        const cancelBtn = document.getElementById(cancelBtnId);
+
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             console.log('Commander access form submitted');
-            const accessCode = document.getElementById('access-code').value;
+            const accessCode = document.getElementById(accessCodeId).value;
             
             if (accessCode === this.user.accessCode) {
                 this.isCommanderVerified = true;
                 showToast('Access verified', 'success');
-                
-                // Update UI
-                const commanderStatus = document.getElementById('commanderStatus');
-                if (commanderStatus) {
-                    commanderStatus.textContent = 'Verified';
-                    commanderStatus.classList.add('verified');
-                }
-                
-                // Remove the form
-                verificationForm.remove();
+                modal.remove();
                 
                 // Set a timeout to reset verification after 30 minutes
                 setTimeout(() => {
                     this.isCommanderVerified = false;
-                    
-                    // Update UI when verification expires
-                    const commanderStatus = document.getElementById('commanderStatus');
-                    if (commanderStatus) {
-                        commanderStatus.textContent = 'Not Verified';
-                        commanderStatus.classList.remove('verified');
-                    }
                 }, 30 * 60 * 1000);
                 
                 if (callback) callback();
             } else {
                 showToast('Invalid access code', 'error');
             }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            console.log('Commander access modal cancelled');
+            modal.remove();
         });
     }
 
