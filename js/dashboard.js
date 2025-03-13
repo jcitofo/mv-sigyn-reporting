@@ -553,36 +553,36 @@ export class ResourceMonitor {
                 this.isVerificationInProgress = true;
                 
                 try {
-                    // Check verification status
-                    const isVerified = await authManager.checkCommanderVerification();
-                    
-                    if (!isVerified) {
-                        // Show verification modal if not verified
-                        authManager.verifyCommanderAccess(() => {
-                            // After successful verification, show resource management section
-                            this.showResourceManagementSection();
-                            
-                            // Reset button state
-                            this.isVerificationInProgress = false;
-                            commanderAccessBtn.disabled = false;
-                            commanderAccessBtn.innerHTML = 'Commander Access';
-                        });
+                    // Get access code from input field
+                    const accessCodeInput = document.getElementById('commander-access-code');
+                    if (!accessCodeInput || !accessCodeInput.value.trim()) {
+                        showToast('Please enter your access code', 'error');
+                        this.isVerificationInProgress = false;
                         return;
                     }
-
-                    // If already verified, show resource management section
-                    this.showResourceManagementSection();
                     
-                    // Reset button state
+                    const accessCode = accessCodeInput.value.trim();
+                    console.log('Access code entered:', accessCode);
+                    console.log('Expected access code:', authManager.user.accessCode);
+                    
+                    // Use the new verifyAccessCode method from authManager
+                    console.log('Calling verifyAccessCode with:', accessCode);
+                    const isVerified = authManager.verifyAccessCode(accessCode);
+                    console.log('Verification result:', isVerified);
+                    
+                    if (isVerified) {
+                        // Clear input field
+                        accessCodeInput.value = '';
+                    }
+                    
+                    // Reset verification state
                     this.isVerificationInProgress = false;
                 } catch (error) {
                     console.error('Commander access error:', error);
                     showToast('Failed to verify commander access', 'error');
                     
-                    // Reset button state in case of error
+                    // Reset verification state
                     this.isVerificationInProgress = false;
-                    commanderAccessBtn.disabled = false;
-                    commanderAccessBtn.innerHTML = 'Commander Access';
                 }
             });
         }

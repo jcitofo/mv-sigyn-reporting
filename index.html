@@ -18,7 +18,7 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/styles.css?v=3">
+    <link rel="stylesheet" href="css/styles.css?v=6">
     <link rel="stylesheet" href="css/resource-management.css?v=1">
     
     <!-- Scripts -->
@@ -42,9 +42,9 @@
             document.head.appendChild(script);
         }
     </script>
-    <script type="module" src="js/auth.js?v=4"></script>
+    <script type="module" src="js/auth.js?v=7"></script>
     <script type="module" src="js/app.js?v=5"></script>
-    <script type="module" src="js/dashboard.js?v=5"></script>
+    <script type="module" src="js/dashboard.js?v=10"></script>
     <script type="module" src="js/resource-manager.js?v=1"></script>
     <script type="module" src="js/sw-register.js?v=4"></script>
 </head>
@@ -202,6 +202,16 @@
                 </div>
             </section>
             <aside>
+                <div id="commander-access-form" class="commander-access-form">
+                    <div class="form-group">
+                        <label for="commander-access-code">Commander Access Code:</label>
+                        <input type="password" id="commander-access-code" required>
+                    </div>
+                    <button id="commander-access" class="primary">Verify Access</button>
+                    <div id="commanderStatus" class="status-indicator">Not Verified</div>
+                    <button id="commander-logout" class="secondary" style="display: none;">Logout</button>
+                </div>
+                
                 <h2>Quick Actions</h2>
                 <ul>
                     <li><a href="#navigation-report" class="quick-action">Create Navigation Report</a></li>
@@ -212,9 +222,7 @@
                 
                 <h2>Commander Tools</h2>
                 <div class="commander-tools">
-                    <button id="verifyCommanderAccess" class="primary">Verify Commander Access</button>
-                    <div id="commanderStatus" class="status-indicator">Not Verified</div>
-                    <button id="commander-access" class="primary">Commander Access</button>
+                    
                     <ul>
                         <li><button id="configureAlerts" class="quick-action" disabled>Configure Alert Settings</button></li>
                         <li><button id="manageThresholds" class="quick-action" disabled>Manage Resource Thresholds</button></li>

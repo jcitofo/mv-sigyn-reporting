@@ -191,6 +191,59 @@ header h1 {
   color: var(--white);
 }
 
+.commander-access-form {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-sm);
+  background-color: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-sm);
+}
+
+.commander-access-form .form-group {
+  margin-bottom: var(--spacing-sm);
+}
+
+.commander-access-form input {
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-sm);
+}
+
+.commander-access-form button {
+  width: 100%;
+  margin-bottom: var(--spacing-sm);
+}
+
+.commander-access-form .status-indicator {
+  margin: 0 auto;
+  text-align: center;
+  display: block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-300);
+  color: var(--gray-500);
+  font-weight: var(--font-weight-medium);
+}
+
+.commander-access-form .status-indicator.verified {
+  background-color: var(--success-color);
+  color: var(--white);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 102, 51, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 102, 51, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 102, 51, 0);
+  }
+}
+
 .commander-verification-form {
   margin: var(--spacing-sm) 0;
   padding: var(--spacing-sm);
@@ -274,26 +327,18 @@ header h1 {
   font-size: var(--font-size-sm);
 }
 
-.user-info {
+/* Language Selector Styles */
+.language-selector {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  color: var(--white);
+  gap: var(--spacing-sm);
 }
 
-.username {
-  font-weight: var(--font-weight-medium);
-}
-
-.role {
-  background-color: var(--secondary-color);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-sm);
-}
-
-.preferences-btn {
-  background-color: var(--info-color);
+.lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(255, 255, 255, 0.2);
   padding: var(--spacing-xs) var(--spacing-sm);
   border: none;
   border-radius: var(--border-radius-sm);
@@ -303,8 +348,18 @@ header h1 {
   transition: var(--transition);
 }
 
-.preferences-btn:hover {
-  background-color: var(--primary-color);
+.lang-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.lang-btn.active {
+  background-color: var(--secondary-color);
+  font-weight: var(--font-weight-medium);
+}
+
+.flag-emoji {
+  font-size: 1.2em;
+  margin-right: 2px;
 }
 
 .logout-btn {

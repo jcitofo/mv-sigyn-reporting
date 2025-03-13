@@ -76,65 +76,154 @@ export class AuthManager {
     verifyCommanderAccess(callback) {
         console.log('verifyCommanderAccess called');
         
-        // Create a unique ID for this modal instance
-        const modalId = `commander-access-modal-${Date.now()}`;
-        const formId = `commander-access-form-${Date.now()}`;
-        const accessCodeId = `access-code-${Date.now()}`;
-        const cancelBtnId = `cancel-access-${Date.now()}`;
+        // Check if already verified
+        if (this.isCommanderVerified) {
+            if (callback) callback();
+            return;
+        }
         
-        const modal = document.createElement('div');
-        modal.className = 'modal commander-access-modal';
-        modal.id = modalId;
-        modal.style.display = 'block';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <h2>Commander Access Verification</h2>
-                <p>Please enter your commander access code to proceed with this operation.</p>
-                <form id="${formId}">
-                    <div class="form-group">
-                        <label for="${accessCodeId}">Access Code:</label>
-                        <input type="password" id="${accessCodeId}" required>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="submit" class="primary">Verify</button>
-                        <button type="button" class="secondary" id="${cancelBtnId}">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-        console.log('Commander access modal added to DOM');
-
-        // Setup event listeners
-        const form = document.getElementById(formId);
-        const cancelBtn = document.getElementById(cancelBtnId);
-
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            console.log('Commander access form submitted');
-            const accessCode = document.getElementById(accessCodeId).value;
+        // Use the existing form in the sidebar
+        const accessCodeInput = document.getElementById('commander-access-code');
+        const commanderAccessBtn = document.getElementById('commander-access');
+        const commanderStatus = document.getElementById('commanderStatus');
+        
+        // Focus on the input field to draw user's attention
+        if (accessCodeInput) {
+            accessCodeInput.focus();
             
-            if (accessCode === this.user.accessCode) {
-                this.isCommanderVerified = true;
-                showToast('Access verified', 'success');
-                modal.remove();
+            // Show a toast message to guide the user
+            showToast('Please enter your commander access code in the top-right form', 'info');
+            
+            // Scroll to make sure the form is visible
+            const commanderForm = document.getElementById('commander-access-form');
+            if (commanderForm) {
+                commanderForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // Store the callback to be executed after verification
+            this._pendingCallback = callback;
+        } else {
+            console.error('Commander access form not found');
+            showToast('Commander access form not found', 'error');
+        }
+    }
+    
+    // Method to be called from the commander-access button click handler
+    verifyAccessCode(accessCode) {
+        if (accessCode === this.user.accessCode) {
+            this.isCommanderVerified = true;
+            showToast('Access verified', 'success');
+            
+            // Update UI elements
+            const commanderStatus = document.getElementById('commanderStatus');
+            if (commanderStatus) {
+                commanderStatus.textContent = 'Verified';
+                commanderStatus.classList.add('verified');
+            }
+            
+            // Update commander badge
+            const commanderBadge = document.getElementById('commanderAccessStatus');
+            if (commanderBadge) {
+                commanderBadge.textContent = 'Commander Access Verified';
+                commanderBadge.classList.add('verified');
+            }
+            
+            // Enable commander tools
+            const commanderTools = [
+                document.getElementById('configureAlerts'),
+                document.getElementById('manageThresholds'),
+                document.getElementById('manageRecipients')
+            ];
+            
+            commanderTools.forEach(tool => {
+                if (tool) {
+                    tool.disabled = false;
+                }
+            });
+            
+            // Show logout button
+            const logoutBtn = document.getElementById('commander-logout');
+            if (logoutBtn) {
+                logoutBtn.style.display = 'block';
                 
-                // Set a timeout to reset verification after 30 minutes
-                setTimeout(() => {
-                    this.isCommanderVerified = false;
-                }, 30 * 60 * 1000);
-                
-                if (callback) callback();
-            } else {
-                showToast('Invalid access code', 'error');
+                // Add event listener if not already added
+                if (!logoutBtn.hasAttribute('data-listener-added')) {
+                    logoutBtn.addEventListener('click', () => this.logout());
+                    logoutBtn.setAttribute('data-listener-added', 'true');
+                }
+            }
+            
+            // Set a timeout to reset verification after 30 minutes
+            if (this._logoutTimer) {
+                clearTimeout(this._logoutTimer);
+            }
+            
+            this._logoutTimer = setTimeout(() => {
+                this.logout();
+                showToast('Commander access has expired', 'info');
+            }, 30 * 60 * 1000);
+            
+            // Execute any pending callback
+            if (this._pendingCallback) {
+                this._pendingCallback();
+                this._pendingCallback = null;
+            }
+            
+            return true;
+        } else {
+            showToast('Invalid access code', 'error');
+            return false;
+        }
+    }
+    
+    // Method to handle logout
+    logout() {
+        this.isCommanderVerified = false;
+        
+        // Update UI elements
+        const commanderStatus = document.getElementById('commanderStatus');
+        if (commanderStatus) {
+            commanderStatus.textContent = 'Not Verified';
+            commanderStatus.classList.remove('verified');
+        }
+        
+        // Update commander badge
+        const commanderBadge = document.getElementById('commanderAccessStatus');
+        if (commanderBadge) {
+            commanderBadge.textContent = 'Commander Access Required';
+            commanderBadge.classList.remove('verified');
+        }
+        
+        // Disable commander tools
+        const commanderTools = [
+            document.getElementById('configureAlerts'),
+            document.getElementById('manageThresholds'),
+            document.getElementById('manageRecipients')
+        ];
+        
+        commanderTools.forEach(tool => {
+            if (tool) {
+                tool.disabled = true;
             }
         });
-
-        cancelBtn.addEventListener('click', () => {
-            console.log('Commander access modal cancelled');
-            modal.remove();
-        });
+        
+        // Hide logout button
+        const logoutBtn = document.getElementById('commander-logout');
+        if (logoutBtn) {
+            logoutBtn.style.display = 'none';
+        }
+        
+        // Clear the access code input
+        const accessCodeInput = document.getElementById('commander-access-code');
+        if (accessCodeInput) {
+            accessCodeInput.value = '';
+        }
+        
+        // Clear the logout timer
+        if (this._logoutTimer) {
+            clearTimeout(this._logoutTimer);
+            this._logoutTimer = null;
+        }
     }
 
     getLoggedInUI() {
