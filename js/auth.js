@@ -41,16 +41,24 @@ export class AuthManager {
         authContainer.innerHTML = this.getLoggedInUI();
         header.appendChild(authContainer);
 
-        // Setup preferences button
-        const prefsBtn = document.getElementById('preferencesBtn');
-        if (prefsBtn) {
-            prefsBtn.addEventListener('click', () => {
-                if (this.user.role === 'captain' && !this.isCommanderVerified) {
-                    this.verifyCommanderAccess(() => this.showPreferencesModal());
-                } else {
-                    this.showPreferencesModal();
+        // Setup language selector
+        this.setupLanguageSelector();
+        
+        // Setup commander access functionality - direct event listener
+        const commanderAccessBtn = document.getElementById('commander-access');
+        if (commanderAccessBtn) {
+            commanderAccessBtn.addEventListener('click', () => {
+                const accessCodeInput = document.getElementById('commander-access-code');
+                if (!accessCodeInput) {
+                    console.error('Commander access code input not found');
+                    return;
                 }
+                const accessCode = accessCodeInput.value;
+                console.log('Commander access code entered:', accessCode);
+                this.verifyAccessCode(accessCode);
             });
+        } else {
+            console.error('Commander access button not found');
         }
         
         // Setup event listeners for resource modification buttons
@@ -92,7 +100,7 @@ export class AuthManager {
             accessCodeInput.focus();
             
             // Show a toast message to guide the user
-            showToast('Please enter your commander access code in the top-right form', 'info');
+            showToast('Please enter your commander access code in the sidebar form', 'info');
             
             // Scroll to make sure the form is visible
             const commanderForm = document.getElementById('commander-access-form');
@@ -110,9 +118,12 @@ export class AuthManager {
     
     // Method to be called from the commander-access button click handler
     verifyAccessCode(accessCode) {
+        console.log('Verifying access code:', accessCode, 'Expected:', this.user.accessCode);
+        
         if (accessCode === this.user.accessCode) {
             this.isCommanderVerified = true;
             showToast('Access verified', 'success');
+            console.log('Commander access verified!');
             
             // Update UI elements
             const commanderStatus = document.getElementById('commanderStatus');
@@ -126,6 +137,8 @@ export class AuthManager {
             if (commanderBadge) {
                 commanderBadge.textContent = 'Commander Access Verified';
                 commanderBadge.classList.add('verified');
+            } else {
+                console.warn('Commander badge element not found');
             }
             
             // Enable commander tools
@@ -171,6 +184,7 @@ export class AuthManager {
             
             return true;
         } else {
+            console.log('Invalid commander access code');
             showToast('Invalid access code', 'error');
             return false;
         }
@@ -179,6 +193,7 @@ export class AuthManager {
     // Method to handle logout
     logout() {
         this.isCommanderVerified = false;
+        console.log('Commander access logged out');
         
         // Update UI elements
         const commanderStatus = document.getElementById('commanderStatus');
@@ -228,153 +243,102 @@ export class AuthManager {
 
     getLoggedInUI() {
         return `
-            <div class="user-info">
-                <span class="username">${this.user.username}</span>
-                <span class="role">${this.user.role}</span>
-                <button id="preferencesBtn" class="preferences-btn">Preferences</button>
-                ${this.user.role === 'captain' ? 
-                    `<span class="commander-status ${this.isCommanderVerified ? 'verified' : ''}">
-                        ${this.isCommanderVerified ? '✓ Verified' : ''}
-                    </span>` : ''}
+            <div class="language-selector">
+                <button id="langEn" class="lang-btn active" title="English">
+                    <span class="flag-emoji">🇬🇧</span> EN
+                </button>
+                <button id="langFr" class="lang-btn" title="Français">
+                    <span class="flag-emoji">🇫🇷</span> FR
+                </button>
             </div>
         `;
     }
 
-    showPreferencesModal() {
-        const modal = document.createElement('div');
-        modal.className = 'modal preferences-modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <h2>User Preferences</h2>
-                <form id="preferencesForm">
-                    <h3>Alert Preferences</h3>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" name="email" 
-                                ${this.user.alertPreferences.email ? 'checked' : ''}>
-                            Email Notifications
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" name="sms" 
-                                ${this.user.alertPreferences.sms ? 'checked' : ''}>
-                            SMS Notifications
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" name="sound" 
-                                ${this.user.alertPreferences.sound ? 'checked' : ''}>
-                            Sound Alerts
-                        </label>
-                    </div>
-
-                    <h3>Resource Thresholds</h3>
-                    ${Object.entries(this.user.thresholds).map(([resource, levels]) => `
-                        <div class="threshold-group">
-                            <h4>${resource.charAt(0).toUpperCase() + resource.slice(1)}</h4>
-                            <div class="form-group">
-                                <label>Warning Level (%):
-                                    <input type="number" name="${resource}_warning" 
-                                        value="${levels.warning}" min="0" max="100">
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label>Critical Level (%):
-                                    <input type="number" name="${resource}_critical" 
-                                        value="${levels.critical}" min="0" max="100">
-                                </label>
-                            </div>
-                        </div>
-                    `).join('')}
-                    
-                    ${this.user.role === 'captain' ? `
-                    <h3>Email Notification Recipients</h3>
-                    <div class="form-group">
-                        <label for="emailRecipients">Email Recipients (comma-separated):</label>
-                        <input type="text" id="emailRecipients" name="emailRecipients" 
-                            value="${localStorage.getItem('alertEmailRecipients') || ''}" 
-                            placeholder="email1@example.com, email2@example.com">
-                    </div>
-                    ` : ''}
-
-                    <div class="modal-actions">
-                        <button type="submit" class="primary">Save Changes</button>
-                        <button type="button" class="secondary" id="cancelPrefs">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // Setup event listeners
-        const form = document.getElementById('preferencesForm');
-        const cancelBtn = document.getElementById('cancelPrefs');
-
-        form.addEventListener('submit', (e) => this.handlePreferencesUpdate(e));
-        cancelBtn.addEventListener('click', () => modal.remove());
-    }
-
-    async handlePreferencesUpdate(event) {
-        event.preventDefault();
-        const form = event.target;
-
-        try {
-            const alertPreferences = {
-                email: form.email.checked,
-                sms: form.sms.checked,
-                sound: form.sound.checked
-            };
-
-            const thresholds = {};
-            ['fuel', 'oil', 'food', 'water'].forEach(resource => {
-                thresholds[resource] = {
-                    warning: parseInt(form[`${resource}_warning`].value),
-                    critical: parseInt(form[`${resource}_critical`].value)
-                };
-            });
-
-            // Save email recipients if captain
-            if (this.user.role === 'captain' && form.emailRecipients) {
-                localStorage.setItem('alertEmailRecipients', form.emailRecipients.value);
-                
-                // Update server-side email recipients
-                try {
-                    await fetch('/api/alerts/config', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${this.token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            emailRecipients: form.emailRecipients.value.split(',').map(email => email.trim())
-                        })
-                    });
-                } catch (error) {
-                    console.error('Failed to update email recipients:', error);
-                }
-            }
-
-            // Update local user data
-            this.user = {
-                ...this.user,
-                alertPreferences,
-                thresholds
-            };
-            localStorage.setItem('user', JSON.stringify(this.user));
-
-            showToast('Your preferences have been saved successfully', 'success');
-            document.querySelector('.preferences-modal').remove();
-
-            // Trigger resource monitor update if it exists
-            if (window.resourceMonitor) {
-                window.resourceMonitor.updateThresholds(thresholds);
-            }
-        } catch (error) {
-            showToast(error.message || 'Failed to update preferences. Please try again.', 'error');
+    // Language switching functionality
+    setupLanguageSelector() {
+        const langEn = document.getElementById('langEn');
+        const langFr = document.getElementById('langFr');
+        
+        if (langEn && langFr) {
+            // Set initial language from localStorage or default to English
+            const currentLang = localStorage.getItem('appLanguage') || 'en';
+            this.setActiveLanguage(currentLang);
+            
+            // Add event listeners
+            langEn.addEventListener('click', () => this.switchLanguage('en'));
+            langFr.addEventListener('click', () => this.switchLanguage('fr'));
         }
+    }
+    
+    switchLanguage(lang) {
+        // Save language preference
+        localStorage.setItem('appLanguage', lang);
+        
+        // Update UI
+        this.setActiveLanguage(lang);
+        
+        // Apply translations
+        this.applyTranslations(lang);
+        
+        // Show confirmation toast
+        showToast(lang === 'en' ? 'Language switched to English' : 'Langue changée en Français', 'success');
+    }
+    
+    setActiveLanguage(lang) {
+        const langEn = document.getElementById('langEn');
+        const langFr = document.getElementById('langFr');
+        
+        if (langEn && langFr) {
+            if (lang === 'en') {
+                langEn.classList.add('active');
+                langFr.classList.remove('active');
+            } else {
+                langEn.classList.remove('active');
+                langFr.classList.add('active');
+            }
+        }
+    }
+    
+    applyTranslations(lang) {
+        // Basic translations for demonstration
+        const translations = {
+            en: {
+                'dashboard': 'Dashboard',
+                'resource-management': 'Resource Management',
+                'data-entry': 'Data Entry',
+                'data-consultation': 'Data Consultation',
+                'report-visualization': 'Report Visualization',
+                'quick-actions': 'Quick Actions',
+                'commander-tools': 'Commander Tools'
+            },
+            fr: {
+                'dashboard': 'Tableau de Bord',
+                'resource-management': 'Gestion des Ressources',
+                'data-entry': 'Saisie de Données',
+                'data-consultation': 'Consultation des Données',
+                'report-visualization': 'Visualisation des Rapports',
+                'quick-actions': 'Actions Rapides',
+                'commander-tools': 'Outils du Commandant'
+            }
+        };
+        
+        // Apply translations to navigation
+        const navLinks = document.querySelectorAll('nav a');
+        navLinks.forEach(link => {
+            const key = link.getAttribute('href').substring(1); // Remove # from href
+            if (translations[lang][key]) {
+                link.textContent = translations[lang][key];
+            }
+        });
+        
+        // Apply translations to headings
+        const headings = document.querySelectorAll('h2');
+        headings.forEach(heading => {
+            const key = heading.textContent.toLowerCase().replace(/\s+/g, '-');
+            if (translations[lang][key]) {
+                heading.textContent = translations[lang][key];
+            }
+        });
     }
 
     getAuthHeaders() {
