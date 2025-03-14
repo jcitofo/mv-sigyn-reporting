@@ -303,6 +303,18 @@ export class ResourceManager {
     async handleResourceUpdate(event) {
         event.preventDefault();
         
+        // Check if commander is verified for captains
+        if (authManager.user.role === 'captain' && !authManager.isCommanderVerified) {
+            authManager.verifyCommanderAccess(() => {
+                this.performResourceUpdate();
+            });
+            return;
+        }
+        
+        this.performResourceUpdate();
+    }
+    
+    async performResourceUpdate() {
         try {
             const resourceType = document.getElementById('resourceType').value;
             const updateType = document.getElementById('updateType').value;

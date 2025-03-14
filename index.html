@@ -21,6 +21,8 @@
     <link rel="stylesheet" href="css/styles.css?v=6">
     <link rel="stylesheet" href="css/resource-management.css?v=1">
     <link rel="stylesheet" href="css/toast.css?v=1">
+    <link rel="stylesheet" href="css/engine.css?v=1">
+    <link rel="stylesheet" href="css/deliveries.css?v=1">
     
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.bundle.min.js"></script>
@@ -47,6 +49,8 @@
     <script type="module" src="js/app.js?v=5"></script>
     <script type="module" src="js/dashboard.js?v=10"></script>
     <script type="module" src="js/resource-manager.js?v=1"></script>
+    <script type="module" src="js/engine-manager.js?v=1"></script>
+    <script type="module" src="js/resource-delivery.js?v=1"></script>
     <script type="module" src="js/sw-register.js?v=4"></script>
 </head>
 <body>
@@ -85,7 +89,7 @@
                                 </div>
                                 <div class="rate-input">
                                     <label for="oilRate">Oil Rate (L/h):</label>
-                                    <input type="number" id="oilRate" value="10" min="0" step="0.1">
+                                    <input type="number" id="oilRate" value="5" min="0" step="0.1">
                                 </div>
                                 <button id="updateRates" class="secondary">Update Rates</button>
                             </div>
@@ -513,10 +517,7 @@
                         </label>
                     </div>
 
-                    <button type="submit">Submit Report</button>
-                    <div id="devTools" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc;">
-                        <button type="button" id="fillTestData" class="secondary">Fill Test Data</button>
-                    </div>
+                    <button type="submit" class="primary">Submit Report</button>
                 </form>
             </section>
 

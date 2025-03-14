@@ -853,6 +853,18 @@ export class ResourceMonitor {
     }
     
     showAlertConfigModal() {
+        // Check if commander is verified for captains
+        if (this.user.role === 'captain' && !authManager.isCommanderVerified) {
+            authManager.verifyCommanderAccess(() => {
+                this.createAlertConfigModal();
+            });
+            return;
+        }
+        
+        this.createAlertConfigModal();
+    }
+    
+    createAlertConfigModal() {
         const modal = document.createElement('div');
         modal.className = 'modal alert-config-modal';
         modal.innerHTML = `
@@ -926,6 +938,18 @@ export class ResourceMonitor {
     }
     
     showThresholdsModal() {
+        // Check if commander is verified for captains
+        if (this.user.role === 'captain' && !authManager.isCommanderVerified) {
+            authManager.verifyCommanderAccess(() => {
+                this.createThresholdsModal();
+            });
+            return;
+        }
+        
+        this.createThresholdsModal();
+    }
+    
+    createThresholdsModal() {
         const modal = document.createElement('div');
         modal.className = 'modal thresholds-modal';
         modal.innerHTML = `

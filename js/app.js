@@ -371,75 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dateInput.value = today;
     }
 
-    // Focus first input field
-    const firstInput = dataEntryForm.querySelector('select, input, textarea');
+    // Focus on the first form field
+    const firstInput = document.getElementById('userRole');
     if (firstInput) {
         firstInput.focus();
-    }
-
-    // Helper function to pre-fill form with test data (for development)
-    const fillTestData = () => {
-        // Clear any previous errors
-        dataEntryForm.querySelectorAll('.error-message').forEach(el => el.remove());
-        dataEntryForm.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
-        
-        // Fill form fields
-        document.getElementById('userRole').value = 'captain';
-        document.getElementById('officerName').value = 'John Smith';
-        document.getElementById('officerId').value = 'CAP-123456';
-        document.getElementById('department').value = 'deck';
-        document.getElementById('email').value = 'john.smith@vessel.com';
-        document.getElementById('phone').value = '+1234567890';
-        document.getElementById('reportType').value = 'navigation';
-        
-        // Set date to today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('date').value = today;
-        
-        document.getElementById('details').value = 'Test report details with sufficient length for validation. This is a sample report.';
-        
-        // Set signature value directly on the DOM element
-        const signatureField = document.getElementById('signature');
-        signatureField.value = 'TestSign123!';
-        
-        document.getElementById('confirmAccuracy').checked = true;
-        
-        // Trigger input events to ensure validation is updated
-        dataEntryForm.querySelectorAll('input, select, textarea').forEach(input => {
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        
-        console.log('Test data filled:', {
-            userRole: document.getElementById('userRole').value,
-            reportType: document.getElementById('reportType').value,
-            date: document.getElementById('date').value,
-            details: document.getElementById('details').value,
-            signature: document.getElementById('signature').value
-        });
-    };
-
-    // Show dev tools (always visible for testing)
-    const devTools = document.getElementById('devTools');
-    if (devTools) {
-        devTools.style.display = 'block';
-        
-        // Add test data button handler
-        const fillTestDataButton = document.getElementById('fillTestData');
-        if (fillTestDataButton) {
-            fillTestDataButton.addEventListener('click', () => {
-                fillTestData();
-                showToast('Test data filled', 'success');
-                
-                // Auto-submit the form after a short delay
-                setTimeout(() => {
-                    const submitButton = dataEntryForm.querySelector('button[type="submit"]');
-                    if (submitButton) {
-                        submitButton.click();
-                    }
-                }, 500);
-            });
-        }
     }
 
     // Initialize report type based on hash

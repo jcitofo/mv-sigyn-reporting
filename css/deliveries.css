@@ -1,0 +1,180 @@
+/* Delivery Management Styles */
+.delivery-log {
+    background: linear-gradient(135deg, var(--white) 0%, rgba(0, 120, 215, 0.1) 100%);
+    border-left: 4px solid var(--info-color);
+}
+
+.delivery-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--gray-200);
+    margin-bottom: var(--spacing-md);
+}
+
+.delivery-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.delivery-form label {
+    font-size: var(--font-size-sm);
+    color: var(--primary-color);
+    font-weight: var(--font-weight-medium);
+}
+
+.delivery-form select,
+.delivery-form input {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-base);
+    width: 100%;
+}
+
+.delivery-form button {
+    margin-top: var(--spacing-xs);
+}
+
+.recent-deliveries {
+    padding: var(--spacing-sm);
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--gray-200);
+}
+
+.recent-deliveries h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+    font-size: var(--font-size-lg);
+    border-bottom: 1px solid var(--gray-300);
+    padding-bottom: var(--spacing-xs);
+}
+
+.deliveries-list {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: var(--spacing-xs);
+}
+
+.deliveries-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.deliveries-list::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 3px;
+}
+
+.deliveries-list::-webkit-scrollbar-thumb {
+    background-color: var(--gray-300);
+    border-radius: 3px;
+}
+
+.deliveries-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--gray-400);
+}
+
+.delivery-item {
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    background-color: var(--white);
+    border-radius: var(--border-radius-sm);
+    border-left: 3px solid var(--secondary-color);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.delivery-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.delivery-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.delivery-type {
+    font-weight: var(--font-weight-medium);
+    color: var(--primary-color);
+}
+
+.delivery-amount {
+    font-weight: var(--font-weight-bold);
+    color: var(--success-color);
+    background-color: rgba(0, 102, 51, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.delivery-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.no-deliveries {
+    text-align: center;
+    padding: var(--spacing-md);
+    color: var(--gray-500);
+    font-style: italic;
+}
+
+/* Animations for new deliveries */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.delivery-item:first-child {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Resource level updates animations */
+@keyframes pulse-update {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.resource-level-bar.updating .level-bar-fill {
+    animation: pulse-update 0.5s ease-in-out;
+}
+
+/* Responsive styles */
+@media (min-width: 768px) {
+    .delivery-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "type amount"
+            "doc doc"
+            "button button";
+        gap: var(--spacing-sm);
+    }
+    
+    .delivery-form .form-group:nth-child(1) {
+        grid-area: type;
+    }
+    
+    .delivery-form .form-group:nth-child(2) {
+        grid-area: amount;
+    }
+    
+    .delivery-form .form-group:nth-child(3) {
+        grid-area: doc;
+    }
+    
+    .delivery-form button {
+        grid-area: button;
+    }
+}

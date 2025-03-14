@@ -10,10 +10,10 @@ const auth = async (req, res, next) => {
                 _id: 'demo_captain',
                 username: 'captain',
                 role: 'captain',
-                email: 'captain@mvsigyn.com',
+                email: 'demo@mvsigyn.com',
                 alertPreferences: {
-                    email: true,
-                    sms: true,
+                    email: false,
+                    sms: false,
                     sound: true
                 },
                 thresholds: {
