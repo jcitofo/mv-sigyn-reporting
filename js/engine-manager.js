@@ -250,12 +250,34 @@ export class EngineManager {
         // Save state
         this.saveState();
         
+        // Update engine-dependent rates in the consumption UI
+        this.updateEngineRatesDisplay();
+        
         // Show confirmation
         showToast('Consumption rates updated successfully', 'success');
         
         // Update resource monitor gauges if available
         if (window.resourceMonitor) {
             window.resourceMonitor.updateGauges();
+            window.resourceMonitor.updateAutonomyDisplays();
+        }
+    }
+    
+    updateEngineRatesDisplay() {
+        // Update the engine-related rates in the resource consumption display
+        const fuelRateElement = document.getElementById('engineFuelRate');
+        if (fuelRateElement) {
+            fuelRateElement.textContent = `${this.fuelRate} L/h`;
+        }
+        
+        const oilRateElement = document.getElementById('engineOilRate');
+        if (oilRateElement) {
+            oilRateElement.textContent = `${this.oilRate} L/h`;
+        }
+        
+        // Update resource manager's display if available
+        if (window.resourceManager && typeof window.resourceManager.updateEngineRatesDisplay === 'function') {
+            window.resourceManager.updateEngineRatesDisplay();
         }
     }
     

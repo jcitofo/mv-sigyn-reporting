@@ -625,7 +625,15 @@ export class ResourceManager {
             // Save last consumption time
             this.saveLastConsumptionTime();
             
-            console.log(`Consumed ${foodConsumed.toFixed(2)} kg of food and ${waterConsumed.toFixed(2)} L of water`);
+            // Update timer display
+            this.updateTimerDisplay();
+            
+            // Update duration displays if possible
+            if (window.resourceMonitor) {
+                window.resourceMonitor.updateAutonomyDisplays();
+            }
+            
+            console.log(`Consumed ${foodConsumed.toFixed(2)} kg of food and ${waterConsumed.toFixed(2)} L of water at ${new Date().toLocaleString()}`);
         } catch (error) {
             console.error('Error during basic resource consumption:', error);
         }

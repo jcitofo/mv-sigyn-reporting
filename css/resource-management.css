@@ -1,5 +1,20 @@
 /* Resource Management Styles */
 
+:root {
+    --success-color: #28a745;
+    --warning-level: #ff9800;
+    --critical-level: #f44336;
+    --gray-level: #e0e0e0;
+    --primary-color: #4a90e2;
+    --border-color: #ddd;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --card-bg: #fff;
+    --bg-color: #f9f9f9;
+    --bg-secondary: #f5f5f5;
+    --hover-color: #f0f0f0;
+}
+
 .resource-management-container {
     display: flex;
     flex-direction: column;
@@ -32,6 +47,7 @@
 /* Consumption Schedule Styles */
 .consumption-schedule {
     margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
 }
 
 .consumption-schedule .section-header {
@@ -41,6 +57,8 @@
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
     gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
 }
 
 .timer-status {
@@ -66,6 +84,10 @@
 
 .timer-details {
     color: var(--text-secondary);
+    background-color: var(--bg-secondary);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
 }
 
 .consumption-dashboard {
@@ -78,18 +100,32 @@
     background-color: var(--bg-color);
     border-radius: 6px;
     padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .consumption-section h4 {
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.engine-resources h4::before {
+    content: "⚙️";
+}
+
+.basic-resources h4::before {
+    content: "⏱️";
 }
 
 .section-description {
     color: var(--text-secondary);
     font-size: 0.9rem;
     margin-bottom: 1.5rem;
+    line-height: 1.4;
+    font-style: italic;
 }
 
 .rate-display {
@@ -106,10 +142,17 @@
     background-color: var(--card-bg);
     border-radius: 6px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rate-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
 }
 
 .rate-item.editable {
     margin-bottom: 0.8rem;
+    border: 1px dashed var(--border-color);
 }
 
 .resource-icon {
@@ -119,6 +162,24 @@
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
+    background-color: var(--bg-secondary);
+    border-radius: 50%;
+}
+
+.fuel-icon {
+    color: #e74c3c;
+}
+
+.oil-icon {
+    color: #3498db;
+}
+
+.food-icon {
+    color: #f39c12;
+}
+
+.water-icon {
+    color: #3498db;
 }
 
 .rate-details {
@@ -134,6 +195,7 @@
 .rate-value {
     font-size: 1.1rem;
     color: var(--text-primary);
+    font-weight: 500;
 }
 
 .rate-input {
@@ -148,11 +210,21 @@
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.rate-input input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
 .unit {
     color: var(--text-secondary);
     font-size: 0.9rem;
+    background-color: var(--bg-secondary);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
 }
 
 .basic-resources form {
@@ -162,6 +234,18 @@
 .update-rates-btn {
     margin-top: 1rem;
     width: 100%;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.7rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.update-rates-btn:hover {
+    background-color: #3a7bc0;
 }
 
 .resource-levels-grid {
