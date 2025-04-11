@@ -436,17 +436,25 @@ server.listen(PORT, async () => {
                 
                 // Use Promise.all to process all resources in parallel with a timeout
                 const updatePromises = resources.map(async (resource) => {
+                    // --- Skip food and water in automatic simulation ---
+                    if (resource.type === 'food' || resource.type === 'water') {
+                        return; // Do not simulate consumption for food/water
+                    }
+                    // --- End Skip ---
                     try {
-                        // Simulate consumption based on actual elapsed time
+                        // Simulate consumption based on actual elapsed time (only for fuel/oil now)
                         const rate = resource.consumptionRate.value;
                         const timeUnit = resource.consumptionRate.unit.includes('day') ? 24 * 60 * 60 : 60 * 60;
                         const consumption = (rate / timeUnit) * elapsedSeconds;
                         
-                        resource.currentLevel = Math.max(0, resource.currentLevel - consumption);
+                        const simulatedLevel = Math.max(0, resource.currentLevel - consumption);
+                        // resource.currentLevel = simulatedLevel; // Don't actually change the level in memory here
                         // await resource.save(); // Disable saving from simulation to avoid conflicts with manual updates
 
+                        // Note: Even if simulation runs for fuel/oil, it's not saved or broadcasted currently.
+                        // 'updates' object is built but not used later in this loop.
                         updates[resource.type] = {
-                            level: resource.currentLevel,
+                            level: simulatedLevel, // Reflect the simulated level
                             capacity: resource.capacity,
                             unit: resource.unit,
                             consumptionRate: resource.consumptionRate
@@ -454,7 +462,7 @@ server.listen(PORT, async () => {
                         
                         updateOperationsCount++;
                     } catch (error) {
-                        console.error(`Error updating resource ${resource.type}:`, error);
+                        console.error(`Error simulating resource ${resource.type}:`, error);
                     }
                 });
                 

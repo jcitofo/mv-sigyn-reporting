@@ -16,8 +16,23 @@ export class ResourceManager {
             food: 'kg',
             water: 'L'
         };
+        this.consumptionRates = {
+            food: 5, // kg per day
+            water: 20 // L per day
+        };
+        this.lastConsumptionTime = this.loadLastConsumptionTime();
+        this.consumptionTimer = null;
         
         this.init();
+    }
+    
+    loadLastConsumptionTime() {
+        const savedTime = localStorage.getItem('lastResourceConsumptionTime');
+        return savedTime ? new Date(savedTime) : new Date();
+    }
+    
+    saveLastConsumptionTime() {
+        localStorage.setItem('lastResourceConsumptionTime', new Date().toISOString());
     }
     
     async init() {
@@ -31,6 +46,12 @@ export class ResourceManager {
             // Update UI with initial data
             this.updateResourceLevels();
             this.fetchResourceHistory();
+            
+            // Start consumption timer for food and water
+            this.startConsumptionTimer();
+            
+            // Check for missed consumption updates
+            this.checkMissedConsumption();
         } catch (error) {
             console.error('Failed to initialize resource manager:', error);
             showToast('Failed to load resource data', 'error');
@@ -436,6 +457,12 @@ export class ResourceManager {
         if (exportBtn) {
             exportBtn.addEventListener('click', this.exportResourceHistory.bind(this));
         }
+        
+        // Consumption rate update form
+        const updateConsumptionForm = document.getElementById('consumptionRateForm');
+        if (updateConsumptionForm) {
+            updateConsumptionForm.addEventListener('submit', this.handleConsumptionRateUpdate.bind(this));
+        }
     }
     
     exportResourceHistory() {
@@ -488,6 +515,215 @@ export class ResourceManager {
         } catch (error) {
             console.error('Error exporting resource history:', error);
             showToast('Failed to export resource history', 'error');
+        }
+    }
+    
+    startConsumptionTimer() {
+        // Clear any existing timer
+        if (this.consumptionTimer) {
+            clearInterval(this.consumptionTimer);
+        }
+        
+        // Set timer to run every 15 minutes (900000 ms)
+        this.consumptionTimer = setInterval(() => {
+            this.consumeBasicResources();
+        }, 900000); // 15 minutes
+        
+        console.log('Resource consumption timer started');
+    }
+    
+    checkMissedConsumption() {
+        const now = new Date();
+        const lastConsumption = this.lastConsumptionTime;
+        
+        // Calculate time difference in milliseconds
+        const timeDiff = now - lastConsumption;
+        
+        // If it's been more than 15 minutes since last consumption update
+        if (timeDiff > 900000) { // 15 minutes in milliseconds
+            // Calculate the number of days elapsed
+            const daysElapsed = timeDiff / (1000 * 60 * 60 * 24);
+            
+            // Consume resources for the elapsed time
+            if (daysElapsed > 0) {
+                this.consumeBasicResources(daysElapsed);
+            }
+        }
+    }
+    
+    async consumeBasicResources(days = 1/96) { // Default is 1/96 of a day (15 minutes)
+        try {
+            // Only proceed if we have resources loaded
+            if (!this.resources.food || !this.resources.water) {
+                await this.fetchResourceData();
+            }
+            
+            // Calculate consumption amounts
+            const foodConsumed = this.consumptionRates.food * days;
+            const waterConsumed = this.consumptionRates.water * days;
+            
+            // Update resource levels locally
+            this.updateResourceLevel('food', -foodConsumed);
+            this.updateResourceLevel('water', -waterConsumed);
+            
+            // Update server-side via API (if amount is significant enough)
+            if (foodConsumed >= 0.1) {
+                await this.sendConsumptionUpdate('food', foodConsumed);
+            }
+            
+            if (waterConsumed >= 0.1) {
+                await this.sendConsumptionUpdate('water', waterConsumed);
+            }
+            
+            // Update UI
+            this.updateResourceLevels();
+            
+            // Save last consumption time
+            this.saveLastConsumptionTime();
+            
+            console.log(`Consumed ${foodConsumed.toFixed(2)} kg of food and ${waterConsumed.toFixed(2)} L of water`);
+        } catch (error) {
+            console.error('Error during basic resource consumption:', error);
+        }
+    }
+    
+    async sendConsumptionUpdate(resourceType, amount) {
+        try {
+            const response = await fetch(`/api/resources/${resourceType}/level`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount,
+                    action: 'consumption'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to update ${resourceType} consumption on server`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error(`Error updating ${resourceType} consumption:`, error);
+            throw error;
+        }
+    }
+    
+    updateResourceLevel(resourceType, amount) {
+        if (!this.resources[resourceType]) return;
+        
+        const resourceData = this.resources[resourceType];
+        const currentAmount = (resourceData.level / 100) * resourceData.capacity;
+        const newAmount = Math.max(0, Math.min(resourceData.capacity, currentAmount + amount));
+        const newLevel = (newAmount / resourceData.capacity) * 100;
+        
+        // Update resource level
+        this.resources[resourceType].level = newLevel;
+        
+        // Check for critical levels
+        this.checkResourceLevels(resourceType, newLevel);
+    }
+    
+    checkResourceLevels(resourceType, level) {
+        // Check critical levels
+        if (level <= 10) {
+            showToast(`Warning: ${this.getResourceName(resourceType)} level critical at ${level.toFixed(1)}%`, 'warning');
+        } else if (level <= 20) {
+            showToast(`${this.getResourceName(resourceType)} level low at ${level.toFixed(1)}%`, 'info');
+        }
+    }
+    
+    getResourceName(type) {
+        const names = {
+            'fuel': 'Fuel',
+            'oil': 'Engine Oil',
+            'food': 'Food Supplies',
+            'water': 'Fresh Water'
+        };
+        return names[type] || type;
+    }
+    
+    async handleConsumptionRateUpdate(event) {
+        event.preventDefault();
+        
+        // Check if commander is verified for captains
+        if (authManager.user.role === 'captain' && !authManager.isCurrentlyVerified()) {
+            authManager.verifyCommanderAccess(() => {
+                this.performConsumptionRateUpdate();
+            });
+            return;
+        }
+        
+        this.performConsumptionRateUpdate();
+    }
+    
+    async performConsumptionRateUpdate() {
+        try {
+            const foodRateInput = document.getElementById('foodRate');
+            const waterRateInput = document.getElementById('waterRate');
+            
+            if (!foodRateInput || !waterRateInput) return;
+            
+            // Validate inputs
+            const newFoodRate = parseFloat(foodRateInput.value);
+            const newWaterRate = parseFloat(waterRateInput.value);
+            
+            if (isNaN(newFoodRate) || isNaN(newWaterRate)) {
+                showToast('Please enter valid consumption rates', 'error');
+                return;
+            }
+            
+            if (newFoodRate <= 0 || newWaterRate <= 0) {
+                showToast('Consumption rates must be greater than zero', 'error');
+                return;
+            }
+            
+            // Update rates
+            this.consumptionRates.food = newFoodRate;
+            this.consumptionRates.water = newWaterRate;
+            
+            // Save to localStorage
+            localStorage.setItem('resourceConsumptionRates', JSON.stringify(this.consumptionRates));
+            
+            // Update API consumption rates
+            await Promise.all([
+                this.updateConsumptionRate('food', newFoodRate),
+                this.updateConsumptionRate('water', newWaterRate)
+            ]);
+            
+            // Show confirmation
+            showToast('Resource consumption rates updated successfully', 'success');
+        } catch (error) {
+            console.error('Error updating consumption rates:', error);
+            showToast(`Failed to update consumption rates: ${error.message}`, 'error');
+        }
+    }
+    
+    async updateConsumptionRate(resourceType, value) {
+        try {
+            const response = await fetch(`/api/resources/${resourceType}/consumption-rate`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    value,
+                    unit: resourceType === 'food' ? 'kg/day' : 'L/day'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to update ${resourceType} consumption rate on server`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error(`Error updating ${resourceType} consumption rate:`, error);
+            throw error;
         }
     }
 }

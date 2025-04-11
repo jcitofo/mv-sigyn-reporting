@@ -282,12 +282,27 @@ export class ResourceMonitor {
             if (foodDuration && this.resources.food) {
                 const foodData = this.resources.food;
                 const currentAmount = (foodData.level / 100) * foodData.capacity;
-                const consumptionRate = foodData.consumptionRate?.value; // kg/day - Don't default here, check below
+                
+                // Try to get consumption rate from resource data first,
+                // or fall back to resource manager if available
+                let consumptionRate = foodData.consumptionRate?.value;
+                if ((!consumptionRate || consumptionRate <= 0) && window.resourceManager?.consumptionRates?.food) {
+                    consumptionRate = window.resourceManager.consumptionRates.food;
+                }
+                
                 const daysRemaining = (consumptionRate && consumptionRate > 0) ? currentAmount / consumptionRate : 0;
-                 // Add detailed logging
-                console.log("Updating Food Display:", { foodData, consumptionRate, currentAmount, daysRemaining: daysRemaining.toFixed(1) });
-               // Display food autonomy in days as per requirements
-                 if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
+                
+                // Add detailed logging
+                console.log("Updating Food Display:", { 
+                    foodData, 
+                    consumptionRate, 
+                    fallbackRate: window.resourceManager?.consumptionRates?.food,
+                    currentAmount, 
+                    daysRemaining: daysRemaining.toFixed(1) 
+                });
+                
+                // Display food autonomy in days as per requirements
+                if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
                     foodDuration.textContent = `${daysRemaining.toFixed(1)} days`;
                 } else {
                     foodDuration.textContent = '-- days'; // Default if calculation fails
@@ -310,12 +325,27 @@ export class ResourceMonitor {
             if (waterDuration && this.resources.water) {
                 const waterData = this.resources.water;
                 const currentAmount = (waterData.level / 100) * waterData.capacity;
-                const consumptionRate = waterData.consumptionRate?.value; // L/day - Don't default here, check below
+                
+                // Try to get consumption rate from resource data first,
+                // or fall back to resource manager if available
+                let consumptionRate = waterData.consumptionRate?.value;
+                if ((!consumptionRate || consumptionRate <= 0) && window.resourceManager?.consumptionRates?.water) {
+                    consumptionRate = window.resourceManager.consumptionRates.water;
+                }
+                
                 const daysRemaining = (consumptionRate && consumptionRate > 0) ? currentAmount / consumptionRate : 0;
+                
                 // Add detailed logging
-                console.log("Updating Water Display:", { waterData, consumptionRate, currentAmount, daysRemaining: daysRemaining.toFixed(1) });
+                console.log("Updating Water Display:", { 
+                    waterData, 
+                    consumptionRate, 
+                    fallbackRate: window.resourceManager?.consumptionRates?.water,
+                    currentAmount, 
+                    daysRemaining: daysRemaining.toFixed(1) 
+                });
+                
                 // Display water autonomy in days as per requirements
-                 if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
+                if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
                     waterDuration.textContent = `${daysRemaining.toFixed(1)} days`;
                 } else {
                     waterDuration.textContent = '-- days'; // Default if calculation fails
