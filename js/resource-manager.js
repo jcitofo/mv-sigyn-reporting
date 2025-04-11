@@ -304,7 +304,7 @@ export class ResourceManager {
         event.preventDefault();
         
         // Check if commander is verified for captains
-        if (authManager.user.role === 'captain' && !authManager.isCommanderVerified) {
+        if (authManager.user.role === 'captain' && !authManager.isCurrentlyVerified()) {
             authManager.verifyCommanderAccess(() => {
                 this.performResourceUpdate();
             });

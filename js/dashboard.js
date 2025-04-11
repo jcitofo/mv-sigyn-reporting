@@ -199,9 +199,13 @@ export class ResourceMonitor {
                 gauge.update();
                 
                 // Also update the level display in the HTML
+                // Add detailed logging for gauge/level updates
+                console.log(`Updating ${resource} Gauge/Level:`, { resourceData, level: level.toFixed(1) });
                 const levelElement = document.getElementById(`${resource}Level`);
                 if (levelElement) {
                     levelElement.textContent = level.toFixed(1);
+                } else {
+                     console.warn(`Element with ID ${resource}Level not found.`);
                 }
             });
             
@@ -220,16 +224,28 @@ export class ResourceMonitor {
             if (fuelRange && this.resources.fuel) {
                 const fuelData = this.resources.fuel;
                 const currentAmount = (fuelData.level / 100) * fuelData.capacity;
-                const consumptionRate = fuelData.consumptionRate?.value || 100; // L/h
-                const hoursRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
+                const consumptionRate = fuelData.consumptionRate?.value; // L/h - Don't default here, check below
+                const hoursRemaining = (consumptionRate && consumptionRate > 0) ? currentAmount / consumptionRate : 0;
+                // Add detailed logging
+                console.log("Updating Fuel Display:", { fuelData, consumptionRate, currentAmount, hoursRemaining: hoursRemaining.toFixed(1) });
                 // Display fuel autonomy in hours as per requirements
-                fuelRange.textContent = `${hoursRemaining.toFixed(1)} hours`;
+                // Only update if hoursRemaining is a valid number
+                 if (!isNaN(hoursRemaining) && isFinite(hoursRemaining)) {
+                    fuelRange.textContent = `${hoursRemaining.toFixed(1)} hours`;
+                } else {
+                    fuelRange.textContent = '-- hours'; // Default if calculation fails
+                    console.warn("Fuel hoursRemaining calculation resulted in NaN or Infinity");
+                }
+            } else {
+                 console.warn(`Element with ID fuelRange or fuel resource data not found.`);
             }
             
             // Update fuel level
             const fuelLevel = document.getElementById('fuelLevel');
             if (fuelLevel && this.resources.fuel) {
                 fuelLevel.textContent = `${this.resources.fuel.level.toFixed(1)}`;
+            } else {
+                 console.warn(`Element with ID fuelLevel or fuel resource data not found.`);
             }
             
             // Update oil duration in days
@@ -237,17 +253,28 @@ export class ResourceMonitor {
             if (engineStatus && this.resources.oil) {
                 const oilData = this.resources.oil;
                 const currentAmount = (oilData.level / 100) * oilData.capacity;
-                const consumptionRate = oilData.consumptionRate?.value || 10; // L/h
-                const hoursRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
-                // Convert to days as per requirements
+                const consumptionRate = oilData.consumptionRate?.value; // L/h - Don't default here, check below
+                const hoursRemaining = (consumptionRate && consumptionRate > 0) ? currentAmount / consumptionRate : 0;
                 const daysRemaining = hoursRemaining / 24;
-                engineStatus.textContent = `${daysRemaining.toFixed(1)} days`;
+                // Add detailed logging
+                console.log("Updating Oil/Engine Display:", { oilData, consumptionRate, currentAmount, hoursRemaining, daysRemaining: daysRemaining.toFixed(1) });
+                // Convert to days as per requirements
+                 if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
+                    engineStatus.textContent = `${daysRemaining.toFixed(1)} days`;
+                } else {
+                    engineStatus.textContent = '-- days'; // Default if calculation fails
+                    console.warn("Oil daysRemaining calculation resulted in NaN or Infinity");
+                }
+            } else {
+                 console.warn(`Element with ID engineStatus or oil resource data not found.`);
             }
             
             // Update oil level
             const oilLevel = document.getElementById('oilLevel');
             if (oilLevel && this.resources.oil) {
                 oilLevel.textContent = `${this.resources.oil.level.toFixed(1)}`;
+            } else {
+                 console.warn(`Element with ID oilLevel or oil resource data not found.`);
             }
             
             // Update food duration in days
@@ -255,16 +282,27 @@ export class ResourceMonitor {
             if (foodDuration && this.resources.food) {
                 const foodData = this.resources.food;
                 const currentAmount = (foodData.level / 100) * foodData.capacity;
-                const consumptionRate = foodData.consumptionRate?.value || 50; // kg/day
-                // Display food autonomy in days as per requirements
-                const daysRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
-                foodDuration.textContent = `${daysRemaining.toFixed(1)} days`;
+                const consumptionRate = foodData.consumptionRate?.value; // kg/day - Don't default here, check below
+                const daysRemaining = (consumptionRate && consumptionRate > 0) ? currentAmount / consumptionRate : 0;
+                 // Add detailed logging
+                console.log("Updating Food Display:", { foodData, consumptionRate, currentAmount, daysRemaining: daysRemaining.toFixed(1) });
+               // Display food autonomy in days as per requirements
+                 if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
+                    foodDuration.textContent = `${daysRemaining.toFixed(1)} days`;
+                } else {
+                    foodDuration.textContent = '-- days'; // Default if calculation fails
+                    console.warn("Food daysRemaining calculation resulted in NaN or Infinity");
+                }
+            } else {
+                 console.warn(`Element with ID foodDuration or food resource data not found.`);
             }
             
             // Update food level
             const foodLevel = document.getElementById('foodLevel');
             if (foodLevel && this.resources.food) {
                 foodLevel.textContent = `${this.resources.food.level.toFixed(1)}`;
+            } else {
+                 console.warn(`Element with ID foodLevel or food resource data not found.`);
             }
             
             // Update water duration in days
@@ -272,16 +310,27 @@ export class ResourceMonitor {
             if (waterDuration && this.resources.water) {
                 const waterData = this.resources.water;
                 const currentAmount = (waterData.level / 100) * waterData.capacity;
-                const consumptionRate = waterData.consumptionRate?.value || 200; // L/day
+                const consumptionRate = waterData.consumptionRate?.value; // L/day - Don't default here, check below
+                const daysRemaining = (consumptionRate && consumptionRate > 0) ? currentAmount / consumptionRate : 0;
+                // Add detailed logging
+                console.log("Updating Water Display:", { waterData, consumptionRate, currentAmount, daysRemaining: daysRemaining.toFixed(1) });
                 // Display water autonomy in days as per requirements
-                const daysRemaining = consumptionRate > 0 ? currentAmount / consumptionRate : 0;
-                waterDuration.textContent = `${daysRemaining.toFixed(1)} days`;
+                 if (!isNaN(daysRemaining) && isFinite(daysRemaining)) {
+                    waterDuration.textContent = `${daysRemaining.toFixed(1)} days`;
+                } else {
+                    waterDuration.textContent = '-- days'; // Default if calculation fails
+                    console.warn("Water daysRemaining calculation resulted in NaN or Infinity");
+                }
+            } else {
+                 console.warn(`Element with ID waterDuration or water resource data not found.`);
             }
             
             // Update water level
             const waterLevel = document.getElementById('waterLevel');
             if (waterLevel && this.resources.water) {
                 waterLevel.textContent = `${this.resources.water.level.toFixed(1)}`;
+            } else {
+                 console.warn(`Element with ID waterLevel or water resource data not found.`);
             }
         } catch (error) {
             console.error('Error updating autonomy displays:', error);

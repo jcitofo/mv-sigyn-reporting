@@ -1007,6 +1007,68 @@ const exportReportsToCSV = () => {
     showToast('Reports exported successfully', 'success');
 };
 
+
+// WebSocket connection for real-time updates
+const initializeWebSocket = () => {
+    // Determine WebSocket protocol (ws or wss)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}`;
+
+    console.log('Attempting to connect WebSocket to:', wsUrl);
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+        console.log('WebSocket connection established');
+        showToast('Real-time connection active', 'info');
+    };
+
+    socket.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+            console.log('WebSocket message received:', message);
+
+            if (message.type === 'resource_update') {
+                console.log('Processing resource_update message');
+                if (window.resourceManager && message.resources) {
+                    // Update the resource manager's data
+                    window.resourceManager.resources = message.resources;
+                    // Trigger UI update
+                    window.resourceManager.updateResourceLevels();
+                    console.log('Resource levels updated via WebSocket');
+                } else {
+                    console.warn('ResourceManager not available or no resource data in message.');
+                }
+            } else if (message.type === 'pong') {
+                // Handle pong messages if needed
+                console.log('Pong received:', message.timestamp);
+            } else {
+                console.log('Received unhandled WebSocket message type:', message.type);
+            }
+        } catch (error) {
+            console.error('Error processing WebSocket message:', error);
+        }
+    };
+
+    socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        showToast('Real-time connection error', 'error');
+    };
+
+    socket.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
+        showToast('Real-time connection lost. Attempting to reconnect...', 'warning');
+        // Optional: Implement reconnection logic
+        setTimeout(initializeWebSocket, 5000); // Reconnect after 5 seconds
+    };
+
+    // Optional: Send periodic pings to keep connection alive
+    setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+        }
+    }, 30000); // Send ping every 30 seconds
+};
+
 // Handle offline/online status
 window.addEventListener('online', () => {
     showToast('Connection restored', 'success');
@@ -1015,3 +1077,12 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
     showToast('Working offline', 'error');
 });
+
+// Initialize WebSocket after DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if user is logged in before initializing WebSocket
+    if (authManager.token && authManager.user) {
+        initializeWebSocket();
+    }
+});
+

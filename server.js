@@ -145,17 +145,7 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-// Broadcast resource updates to all connected clients
-function broadcastResourceUpdate(resources) {
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'resource_update',
-                resources
-            }));
-        }
-    });
-}
+// Redundant broadcast function removed. Broadcasting is handled in routes/resources.js via req.wss.
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -479,9 +469,9 @@ server.listen(PORT, async () => {
                 ]);
                 
                 // Only broadcast if we have updates
-                if (Object.keys(updates).length > 0) {
-                    broadcastResourceUpdate(updates);
-                }
+                // if (Object.keys(updates).length > 0) {
+                //     broadcastResourceUpdate(updates); // Disabled: Prevents broadcasting unsaved simulation data
+                // }
             } catch (error) {
                 console.error('Error in resource update simulation:', error);
             }

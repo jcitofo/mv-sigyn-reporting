@@ -22,7 +22,9 @@ export class AuthManager {
         
         this.token = 'demo_token';
         this.user = demoUser;
-        this.isCommanderVerified = false;
+        this.isCommanderVerified = false; // Default state
+        this._pendingCallback = null;
+        this._checkPersistedVerification(); // Check sessionStorage on init
         localStorage.setItem('token', this.token);
         localStorage.setItem('user', JSON.stringify(this.user));
         
@@ -76,8 +78,25 @@ export class AuthManager {
         });
     }
     
-    async checkCommanderVerification() {
-        // Check if verification is still valid (within 30 minute window)
+    _checkPersistedVerification() {
+        const verificationTimestamp = sessionStorage.getItem('commanderVerificationTimestamp');
+        const isVerified = sessionStorage.getItem('isCommanderVerified') === 'true';
+
+        if (isVerified && verificationTimestamp) {
+            // Optional: Could add a maximum session duration check here if needed
+            // const maxDuration = 60 * 60 * 1000; // e.g., 1 hour
+            // if (Date.now() - parseInt(verificationTimestamp) < maxDuration) {
+                this.isCommanderVerified = true;
+                console.log('Restored commander verification from session storage.');
+                this._updateVerificationUI(true); // Update UI based on restored state
+            // } else {
+            //     this.logout(); // Expired
+            // }
+        }
+    }
+
+    // Renamed from checkCommanderVerification for clarity, though functionality is similar
+    isCurrentlyVerified() {
         return this.isCommanderVerified;
     }
 
@@ -85,7 +104,7 @@ export class AuthManager {
         console.log('verifyCommanderAccess called');
         
         // Check if already verified
-        if (this.isCommanderVerified) {
+        if (this.isCurrentlyVerified()) {
             if (callback) callback();
             return;
         }
@@ -215,59 +234,25 @@ export class AuthManager {
         
         if (accessCode === this.user.accessCode) {
             this.isCommanderVerified = true;
+            sessionStorage.setItem('isCommanderVerified', 'true');
+            sessionStorage.setItem('commanderVerificationTimestamp', Date.now().toString());
             showToast('Access verified', 'success');
             console.log('Commander access verified!');
             
-            // Update UI elements
-            const commanderStatus = document.getElementById('commanderStatus');
-            if (commanderStatus) {
-                commanderStatus.textContent = 'Verified';
-                commanderStatus.classList.add('verified');
-            }
-            
-            // Update commander badge
-            const commanderBadge = document.getElementById('commanderAccessStatus');
-            if (commanderBadge) {
-                commanderBadge.textContent = 'Commander Access Verified';
-                commanderBadge.classList.add('verified');
-            } else {
-                console.warn('Commander badge element not found');
-            }
-            
-            // Enable commander tools
-            const commanderTools = [
-                document.getElementById('configureAlerts'),
-                document.getElementById('manageThresholds'),
-                document.getElementById('manageRecipients')
-            ];
-            
-            commanderTools.forEach(tool => {
-                if (tool) {
-                    tool.disabled = false;
-                }
-            });
-            
-            // Show logout button
+            this._updateVerificationUI(true);
+
+            // Show logout button (ensure listener is attached)
             const logoutBtn = document.getElementById('commander-logout');
             if (logoutBtn) {
                 logoutBtn.style.display = 'block';
-                
-                // Add event listener if not already added
                 if (!logoutBtn.hasAttribute('data-listener-added')) {
                     logoutBtn.addEventListener('click', () => this.logout());
                     logoutBtn.setAttribute('data-listener-added', 'true');
                 }
             }
             
-            // Set a timeout to reset verification after 30 minutes
-            if (this._logoutTimer) {
-                clearTimeout(this._logoutTimer);
-            }
-            
-            this._logoutTimer = setTimeout(() => {
-                this.logout();
-                showToast('Commander access has expired', 'info');
-            }, 30 * 60 * 1000);
+            // Removed automatic 30-minute timeout
+            // Verification now persists for the session or until manual logout
             
             // Execute any pending callback
             if (this._pendingCallback) {
@@ -286,35 +271,12 @@ export class AuthManager {
     // Method to handle logout
     logout() {
         this.isCommanderVerified = false;
+        sessionStorage.removeItem('isCommanderVerified');
+        sessionStorage.removeItem('commanderVerificationTimestamp');
         console.log('Commander access logged out');
         
-        // Update UI elements
-        const commanderStatus = document.getElementById('commanderStatus');
-        if (commanderStatus) {
-            commanderStatus.textContent = 'Not Verified';
-            commanderStatus.classList.remove('verified');
-        }
-        
-        // Update commander badge
-        const commanderBadge = document.getElementById('commanderAccessStatus');
-        if (commanderBadge) {
-            commanderBadge.textContent = 'Commander Access Required';
-            commanderBadge.classList.remove('verified');
-        }
-        
-        // Disable commander tools
-        const commanderTools = [
-            document.getElementById('configureAlerts'),
-            document.getElementById('manageThresholds'),
-            document.getElementById('manageRecipients')
-        ];
-        
-        commanderTools.forEach(tool => {
-            if (tool) {
-                tool.disabled = true;
-            }
-        });
-        
+        this._updateVerificationUI(false);
+
         // Hide logout button
         const logoutBtn = document.getElementById('commander-logout');
         if (logoutBtn) {
@@ -327,11 +289,7 @@ export class AuthManager {
             accessCodeInput.value = '';
         }
         
-        // Clear the logout timer
-        if (this._logoutTimer) {
-            clearTimeout(this._logoutTimer);
-            this._logoutTimer = null;
-        }
+        // Removed automatic timeout timer clearing
     }
 
     getLoggedInUI() {
@@ -438,6 +396,43 @@ export class AuthManager {
         return this.token ? {
             'Authorization': `Bearer ${this.token}`
         } : {};
+    }
+
+    // Helper function to update UI elements related to verification status
+    _updateVerificationUI(isVerified) {
+        const commanderStatus = document.getElementById('commanderStatus');
+        const commanderBadge = document.getElementById('commanderAccessStatus');
+        const commanderTools = [
+            document.getElementById('configureAlerts'),
+            document.getElementById('manageThresholds'),
+            document.getElementById('manageRecipients')
+        ];
+
+        if (isVerified) {
+            if (commanderStatus) {
+                commanderStatus.textContent = 'Verified';
+                commanderStatus.classList.add('verified');
+            }
+            if (commanderBadge) {
+                commanderBadge.textContent = 'Commander Access Verified';
+                commanderBadge.classList.add('verified');
+            }
+            commanderTools.forEach(tool => { if (tool) tool.disabled = false; });
+        } else {
+            if (commanderStatus) {
+                commanderStatus.textContent = 'Not Verified';
+                commanderStatus.classList.remove('verified');
+            }
+            if (commanderBadge) {
+                commanderBadge.textContent = 'Commander Access Required';
+                commanderBadge.classList.remove('verified');
+            }
+            commanderTools.forEach(tool => { if (tool) tool.disabled = true; });
+
+            // Clear access code input on logout/expiry
+             const accessCodeInput = document.getElementById('commander-access-code');
+             if (accessCodeInput) accessCodeInput.value = '';
+        }
     }
 }
 
