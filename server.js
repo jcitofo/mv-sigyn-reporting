@@ -29,6 +29,13 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(__dirname));
 
+
+// Middleware to attach wss to req
+app.use((req, res, next) => {
+    req.wss = wss;
+    next();
+});
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
@@ -446,8 +453,8 @@ server.listen(PORT, async () => {
                         const consumption = (rate / timeUnit) * elapsedSeconds;
                         
                         resource.currentLevel = Math.max(0, resource.currentLevel - consumption);
-                        await resource.save();
-                        
+                        // await resource.save(); // Disable saving from simulation to avoid conflicts with manual updates
+
                         updates[resource.type] = {
                             level: resource.currentLevel,
                             capacity: resource.capacity,

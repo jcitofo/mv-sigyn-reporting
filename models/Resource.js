@@ -101,14 +101,25 @@ resourceSchema.methods.updateLevel = async function(amount, action, userId) {
     } else if (action === 'consumption') {
         const newAmount = (this.currentLevel / 100 * this.capacity) - amount;
         this.currentLevel = Math.max((newAmount / this.capacity) * 100, 0);
+    } else if (action === 'manual_update') {
+        // Treat amount as the new absolute quantity
+        const newAmount = amount;
+        // Convert absolute amount to percentage level, clamping between 0 and 100%
+        this.currentLevel = Math.max(0, Math.min((newAmount / this.capacity) * 100, 100));
     } else {
-        this.currentLevel = Math.max(0, Math.min(amount, 100));
+        // Handle unknown actions if necessary, maybe log a warning
+        console.warn(`Unknown resource update action received: ${action}`);
+        // Avoid changing the level for unknown actions
+        return this.currentLevel;
     }
 
+    // Ensure amount is a valid number before pushing to history
+    const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+
     this.history.push({
-        level: this.currentLevel,
+        level: this.currentLevel, // The new level after update
         action,
-        amount: Math.abs(this.currentLevel - oldLevel),
+        amount: validAmount, // Store the actual amount value involved in the action
         updatedBy: userId
     });
 

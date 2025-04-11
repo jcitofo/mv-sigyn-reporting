@@ -5,6 +5,29 @@ const Alert = require('../models/Alert');
 const { auth, validateResourceAccess, checkRole } = require('../middleware/auth');
 
 const router = express.Router();
+const WebSocket = require('ws'); // Import WebSocket
+
+// Helper function to broadcast updates to all connected clients
+function broadcastUpdate(wss, resources) {
+    if (!wss || !wss.clients) {
+        console.error("WebSocket server instance (wss) not available or has no clients.");
+        return;
+    }
+    const payload = JSON.stringify({
+        type: 'resource_update',
+        resources // Expects the format { fuel: {...}, oil: {...}, ... }
+    });
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            try {
+                client.send(payload);
+            } catch (error) {
+                console.error("Error sending WebSocket message to client:", error);
+            }
+        }
+    });
+    console.log("Broadcasted resource update via WebSocket.");
+}
 
 // Get all resources status
 router.get('/status', auth, async (req, res) => {
@@ -75,6 +98,16 @@ router.patch('/:type/level', auth, validateResourceAccess, async (req, res) => {
             message: 'Resource level updated successfully',
             currentLevel: newLevel
         });
+
+        // --- Broadcast Update ---
+        try {
+            const allResourcesStatus = await Resource.getResourcesStatus();
+            broadcastUpdate(req.wss, allResourcesStatus);
+        } catch (broadcastError) {
+            console.error("Error fetching status or broadcasting update after level change:", broadcastError);
+        }
+        // --- End Broadcast ---
+
     } catch (error) {
         res.status(500).json({
             error: 'Failed to update resource level: ' + error.message
@@ -100,6 +133,16 @@ router.post('/:type/delivery', auth, validateResourceAccess, async (req, res) =>
             message: 'Delivery recorded successfully',
             currentLevel: newLevel
         });
+
+        // --- Broadcast Update ---
+        try {
+            const allResourcesStatus = await Resource.getResourcesStatus();
+            broadcastUpdate(req.wss, allResourcesStatus);
+        } catch (broadcastError) {
+            console.error("Error fetching status or broadcasting update after delivery:", broadcastError);
+        }
+        // --- End Broadcast ---
+
     } catch (error) {
         res.status(500).json({
             error: 'Failed to record delivery: ' + error.message

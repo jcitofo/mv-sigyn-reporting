@@ -67,6 +67,88 @@
   color: var(--gray-500);
 }
 
+/* --- Enhanced Resource Update Form Styles --- */
+
+/* Arrange labels and controls side-by-side */
+.resource-update-form .form-group {
+  display: flex;
+  align-items: center; /* Vertically align label and input */
+  gap: var(--spacing-sm); /* Space between label and input */
+  margin-bottom: var(--spacing-md); /* Keep vertical space between groups */
+  flex-wrap: wrap; /* Allow wrapping on small screens if needed */
+}
+
+/* Give labels a fixed width for alignment */
+.resource-update-form .form-group label {
+  flex-basis: 120px; /* Adjust as needed */
+  flex-shrink: 0; /* Prevent label from shrinking */
+  text-align: right; /* Align text to the right, next to the input */
+  padding-right: var(--spacing-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Allow input fields to take remaining space */
+.resource-update-form .form-group select,
+.resource-update-form .form-group input[type="number"],
+.resource-update-form .form-group textarea {
+  flex-grow: 1; /* Allow input to grow */
+  border: 1px solid var(--gray-300);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-50);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.resource-update-form .form-group textarea {
+  min-height: 60px; /* Adjust height for textarea */
+}
+
+/* Specific alignment for the notes textarea label */
+.resource-update-form .form-group label[for="resourceNotes"] {
+  align-self: flex-start; /* Align label to top for textarea */
+  padding-top: var(--spacing-xs);
+}
+
+/* Improve focus state */
+.resource-update-form .form-group select:focus,
+.resource-update-form .form-group input[type="number"]:focus,
+.resource-update-form .form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.2); /* Subtle focus ring */
+}
+
+/* Style the unit span */
+#resourceUnit {
+  margin-left: var(--spacing-sm);
+  color: var(--gray-600);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Center the button and give it more prominence */
+.resource-update-form button[type="submit"] {
+  display: block; /* Make it block level */
+  width: calc(100% - 120px - var(--spacing-sm)); /* Align with inputs */
+  margin-left: calc(120px + var(--spacing-sm)); /* Offset by label width + gap */
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-base); /* Slightly larger font */
+  /* Ensure it uses primary button styles (might be in styles.css already) */
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.resource-update-form button[type="submit"]:hover {
+  background-color: var(--primary-color-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- End Enhanced Styles --- */
+
 /* Resource Levels */
 .resource-levels {
   background-color: var(--white);

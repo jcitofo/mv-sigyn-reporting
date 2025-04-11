@@ -90,30 +90,123 @@ export class AuthManager {
             return;
         }
         
-        // Use the existing form in the sidebar
-        const accessCodeInput = document.getElementById('commander-access-code');
-        const commanderAccessBtn = document.getElementById('commander-access');
-        const commanderStatus = document.getElementById('commanderStatus');
+        // Store the callback to be executed after verification
+        this._pendingCallback = callback;
         
-        // Focus on the input field to draw user's attention
-        if (accessCodeInput) {
-            accessCodeInput.focus();
+        // Create a persistent overlay for verification
+        this.createVerificationOverlay();
+    }
+    
+    createVerificationOverlay() {
+        // Create a modal overlay for verification to prevent interaction with background
+        const overlay = document.createElement('div');
+        overlay.className = 'verification-overlay';
+        overlay.id = 'verificationOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '1000';
+        overlay.style.display = 'flex';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        
+        // Create verification form
+        const verificationForm = document.createElement('div');
+        verificationForm.className = 'verification-form';
+        verificationForm.style.backgroundColor = '#fff';
+        verificationForm.style.padding = '20px';
+        verificationForm.style.borderRadius = '5px';
+        verificationForm.style.maxWidth = '350px';
+        verificationForm.style.width = '100%';
+        
+        verificationForm.innerHTML = `
+            <h3 style="margin-top: 0;">Commander Access Required</h3>
+            <p>Please enter your commander access code to proceed with this operation.</p>
+            <div style="margin-bottom: 15px;">
+                <label for="overlay-access-code">Commander Access Code:</label>
+                <input type="password" id="overlay-access-code" style="width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box;" required>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <button id="cancel-verification" style="padding: 8px 15px; background-color: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Cancel</button>
+                <button id="submit-verification" style="padding: 8px 15px; background-color: #0d6efd; color: white; border: none; border-radius: 3px; cursor: pointer;">Verify Access</button>
+            </div>
+        `;
+        
+        overlay.appendChild(verificationForm);
+        document.body.appendChild(overlay);
+        
+        // Focus on the input
+        setTimeout(() => {
+            const accessCodeInput = document.getElementById('overlay-access-code');
+            if (accessCodeInput) accessCodeInput.focus();
+        }, 100);
+        
+        // Add event listeners
+        document.getElementById('submit-verification').addEventListener('click', () => {
+            const code = document.getElementById('overlay-access-code').value;
+            console.log('Submit verification clicked with code:', code);
             
-            // Show a toast message to guide the user
-            showToast('Please enter your commander access code in the sidebar form', 'info');
+            // Verify the access code
+            const result = this.verifyAccessCode(code);
+            console.log('Verification result:', result);
             
-            // Scroll to make sure the form is visible
-            const commanderForm = document.getElementById('commander-access-form');
-            if (commanderForm) {
-                commanderForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (result) {
+                // Remove the overlay on success
+                document.body.removeChild(overlay);
+                
+                // Show success toast
+                showToast('Commander access verified', 'success');
+                
+                // Execute the callback
+                if (this._pendingCallback) {
+                    console.log('Executing pending callback');
+                    setTimeout(() => {
+                        if (this._pendingCallback) this._pendingCallback();
+                        this._pendingCallback = null;
+                    }, 100);
+                }
+            } else {
+                // On failure, shake the input field
+                const input = document.getElementById('overlay-access-code');
+                input.classList.add('shake-animation');
+                setTimeout(() => input.classList.remove('shake-animation'), 500);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'verification-error';
+                errorMsg.textContent = 'Invalid access code. Try again.';
+                errorMsg.style.color = 'red';
+                errorMsg.style.marginTop = '5px';
+                errorMsg.style.fontSize = '0.9em';
+                errorMsg.style.textAlign = 'center';
+                
+                // Remove any existing error message
+                const existingError = document.querySelector('.verification-error');
+                if (existingError) existingError.remove();
+                
+                // Insert error message before the buttons
+                const buttonsDiv = document.querySelector('.verification-form > div:last-child');
+                buttonsDiv.parentNode.insertBefore(errorMsg, buttonsDiv);
             }
-            
-            // Store the callback to be executed after verification
-            this._pendingCallback = callback;
-        } else {
-            console.error('Commander access form not found');
-            showToast('Commander access form not found', 'error');
-        }
+        });
+        
+        document.getElementById('cancel-verification').addEventListener('click', () => {
+            // Cancel operation
+            this._pendingCallback = null;
+            document.body.removeChild(overlay);
+            showToast('Operation cancelled', 'info');
+        });
+        
+        // Handle pressing Enter key
+        document.getElementById('overlay-access-code').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('submit-verification').click();
+            }
+        });
     }
     
     // Method to be called from the commander-access button click handler
