@@ -527,9 +527,53 @@ export class ResourceManager {
         // Set timer to run every 15 minutes (900000 ms)
         this.consumptionTimer = setInterval(() => {
             this.consumeBasicResources();
+            this.updateTimerDisplay();
         }, 900000); // 15 minutes
         
         console.log('Resource consumption timer started');
+        
+        // Update timer display immediately 
+        this.updateTimerDisplay();
+        
+        // Show the timer as active
+        const timerStatus = document.getElementById('consumptionTimerStatus');
+        if (timerStatus) {
+            timerStatus.textContent = 'Timer Active';
+            timerStatus.classList.add('active');
+        }
+        
+        // Update the engine rates display
+        this.updateEngineRatesDisplay();
+    }
+    
+    updateTimerDisplay() {
+        // Update last consumption time
+        const lastTimeElement = document.getElementById('lastConsumptionTime');
+        if (lastTimeElement) {
+            lastTimeElement.textContent = this.lastConsumptionTime.toLocaleTimeString();
+        }
+        
+        // Calculate and display next consumption time
+        const nextTimeElement = document.getElementById('nextConsumptionTime');
+        if (nextTimeElement) {
+            const nextTime = new Date(this.lastConsumptionTime.getTime() + 900000); // 15 minutes after last time
+            nextTimeElement.textContent = nextTime.toLocaleTimeString();
+        }
+    }
+    
+    updateEngineRatesDisplay() {
+        // Update the engine-related rates from engine manager
+        if (window.engineManager) {
+            const fuelRateElement = document.getElementById('engineFuelRate');
+            if (fuelRateElement) {
+                fuelRateElement.textContent = `${window.engineManager.fuelRate} L/h`;
+            }
+            
+            const oilRateElement = document.getElementById('engineOilRate');
+            if (oilRateElement) {
+                oilRateElement.textContent = `${window.engineManager.oilRate} L/h`;
+            }
+        }
     }
     
     checkMissedConsumption() {
@@ -693,6 +737,15 @@ export class ResourceManager {
                 this.updateConsumptionRate('food', newFoodRate),
                 this.updateConsumptionRate('water', newWaterRate)
             ]);
+            
+            // Update dashboard to reflect new autonomy durations
+            if (window.resourceMonitor) {
+                window.resourceMonitor.updateAutonomyDisplays();
+            }
+            
+            // Update timer display information
+            this.saveLastConsumptionTime();
+            this.updateTimerDisplay();
             
             // Show confirmation
             showToast('Resource consumption rates updated successfully', 'success');
